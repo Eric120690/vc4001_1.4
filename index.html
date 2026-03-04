@@ -47,17 +47,7 @@
   // Lắng nghe trạng thái đăng nhập
   onAuthStateChanged(auth, (user) => {
     window._currentUser = user;
-    if (user) {
-      // Lưu profile lên Firestore
-      const isAdmin = user.email === window.ADMIN_EMAIL;
-      window._setDoc(window._doc(db, 'users', user.uid), {
-        email: user.email,
-        displayName: user.displayName || '',
-        photoURL: user.photoURL || '',
-        isAdmin: isAdmin,
-        lastSeen: Date.now()
-      }, { merge: true }).catch(()=>{});
-    }
+    // Không ghi Firestore ở đây — handleAuthChange sẽ xử lý toàn bộ
     if (!window._firebaseReady) {
       window._firebaseReady = true;
       window.dispatchEvent(new Event('firebase-ready'));
@@ -2792,21 +2782,39 @@ function initApp() {
 async function handleAuthChange(user) {
   updateAuthBar();
   if (user && user.email) {
-    // Lưu user info lên Firestore (nếu chưa có accessStatus thì để pending)
     const userRef = window._doc(window._db, 'users', user.uid);
-    const snap = await window._getDoc(userRef).catch(()=>null);
-    const existing = snap && snap.exists() ? snap.data() : {};
     const isAdminUser = user.email === window.ADMIN_EMAIL;
-    await window._setDoc(userRef, {
-      email: user.email,
-      displayName: user.displayName || '',
-      photoURL: user.photoURL || '',
-      isAdmin: isAdminUser,
-      accessStatus: isAdminUser ? 'approved' : (existing.accessStatus || 'pending'),
-      lastSeen: Date.now()
-    }, { merge: true }).catch(()=>{});
 
-    const access = isAdminUser ? 'approved' : (existing.accessStatus || 'pending');
+    // Đọc trạng thái hiện tại từ Firestore
+    const snap = await window._getDoc(userRef).catch(()=>null);
+    const existing = snap && snap.exists() ? snap.data() : null;
+
+    if (!existing) {
+      // User mới — tạo document với accessStatus = 'pending' (hoặc 'approved' nếu là admin)
+      await window._setDoc(userRef, {
+        email: user.email,
+        displayName: user.displayName || '',
+        photoURL: user.photoURL || '',
+        isAdmin: isAdminUser,
+        accessStatus: isAdminUser ? 'approved' : 'pending',
+        lastSeen: Date.now()
+      }).catch(()=>{});
+    } else {
+      // User đã tồn tại — CHỈ cập nhật thông tin profile, KHÔNG đụng vào accessStatus
+      await window._setDoc(userRef, {
+        email: user.email,
+        displayName: user.displayName || '',
+        photoURL: user.photoURL || '',
+        isAdmin: isAdminUser,
+        lastSeen: Date.now()
+      }, { merge: true }).catch(()=>{});
+    }
+
+    // Đọc lại accessStatus sau khi ghi xong
+    const currentSnap = await window._getDoc(userRef).catch(()=>null);
+    const access = isAdminUser
+      ? 'approved'
+      : (currentSnap && currentSnap.exists() ? currentSnap.data().accessStatus : 'pending') || 'pending';
 
     if (access === 'approved') {
       document.getElementById('loginOverlay').classList.remove('show');
