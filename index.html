@@ -131,6 +131,68 @@
   @keyframes statsPop { 0%{transform:scale(1)} 40%{transform:scale(1.18)} 100%{transform:scale(1)} }
   .stats-pill.pop { animation: statsPop 0.35s ease; }
 
+
+  /* ── MAIN NAV TABS (Học / Thử Thách) ── */
+  .main-nav {
+    display: none;
+    gap: 4px;
+    background: var(--dark2);
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    padding: 5px;
+    margin-bottom: 24px;
+    width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .main-nav.visible { display: flex; }
+  .main-nav-btn {
+    padding: 8px 22px;
+    border-radius: 10px;
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,0.4);
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .main-nav-btn:hover { color: rgba(255,255,255,0.7); }
+  .main-nav-btn.active {
+    background: var(--glass);
+    color: var(--neon-cyan);
+    box-shadow: 0 0 0 1px rgba(0,245,255,0.2);
+  }
+  .main-nav-btn .nav-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--neon-yellow);
+    margin-left: 5px;
+    vertical-align: middle;
+    animation: pulse 2s infinite;
+  }
+
+  /* unified pack card — admin share badge */
+  .pack-admin-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.58rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255,230,0,0.7);
+    background: rgba(255,230,0,0.08);
+    border: 1px solid rgba(255,230,0,0.2);
+    border-radius: 999px;
+    padding: 2px 7px;
+    margin-bottom: 6px;
+    font-family: 'Space Mono', monospace;
+  }
+
   /* ── CHALLENGE SECTION ── */
   .challenge-section { margin-bottom: 20px; display: none; }
   .challenge-section.visible { display: block; }
@@ -1194,16 +1256,23 @@
     </div>
   </div>
 
-  <!-- ===== CHALLENGE SECTION ===== -->
-  <div class="challenge-section" id="challengeSection">
-    <div class="section-label" style="margin-bottom:12px">⚡ Thử thách</div>
-    <div id="challengeCardContainer"></div>
+  <!-- ===== MAIN NAV ===== -->
+  <div class="main-nav" id="mainNav">
+    <button class="main-nav-btn active" id="mainNavPacks" onclick="switchMainTab('packs')">📦 Từ Vựng</button>
+    <button class="main-nav-btn" id="mainNavChallenge" onclick="switchMainTab('challenge')">⚡ Thử Thách<span class="nav-dot" id="challengeNavDot" style="display:none"></span></button>
   </div>
 
   <!-- ===== PACKS SCREEN ===== -->
   <div class="screen active" id="screen-packs">
-    <div class="card">
-      <div class="packs-grid" id="packsGrid"></div>
+    <!-- TAB: Từ Vựng -->
+    <div id="mainTabPacks">
+      <div class="card">
+        <div class="packs-grid" id="packsGrid"></div>
+      </div>
+    </div>
+    <!-- TAB: Thử Thách -->
+    <div id="mainTabChallenge" style="display:none">
+      <div id="challengeCardContainer"></div>
     </div>
   </div>
 
@@ -1502,7 +1571,6 @@ async function showPacksScreen() {
   packs = await loadPacks();
   renderPacksGrid();
   refreshStatsBar();
-  loadAndRenderChallenge();
 }
 
 async function showPacksScreen() {
@@ -1513,7 +1581,11 @@ async function showPacksScreen() {
   packs = await loadPacks();
   renderPacksGrid();
   refreshStatsBar();
-  loadAndRenderChallenge();
+  // Show main nav for logged-in users, reset to packs tab
+  if (isLoggedIn()) {
+    document.getElementById('mainNav').classList.add('visible');
+    switchMainTab('packs');
+  }
 }
 
 async function renderPacksGrid() {
@@ -1534,16 +1606,29 @@ async function renderPacksGrid() {
 
   grid.innerHTML = '';
 
-  // ── Section: Gói của tôi ──
-  if (packs.length || true) {
-    const myLabel = document.createElement('div');
-    myLabel.className = 'section-label';
-    myLabel.style.cssText = 'grid-column:1/-1;margin-bottom:0';
-    myLabel.innerHTML = '◈ Gói từ vựng của bạn';
-    grid.appendChild(myLabel);
-  }
-
   const icons = ['📘','📗','📙','📕','📒','📓','📔','📑'];
+
+  // ── Shared packs FIRST (admin curated) ──
+  sharedPacks.forEach((pack, i) => {
+    const total = (pack.words || []).length;
+    const prog = pack._userProgress || {};
+    const mastered = (pack.words||[]).filter(w => prog[w.word]).length;
+    const pct = total ? Math.round(mastered / total * 100) : 0;
+    const card = document.createElement('div');
+    card.className = 'pack-card';
+    card.innerHTML = `
+      <div class="pack-admin-badge">⬡ Admin Share</div>
+      <div class="pack-icon">${pack.icon || icons[i % icons.length]}</div>
+      <div class="pack-name">${h(pack.name)}</div>
+      <div class="pack-meta">${pack.desc ? h(pack.desc) + '<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
+      <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%"></div></div>
+      <div class="pack-progress-label">${pct}% hoàn thành</div>
+    `;
+    card.addEventListener('click', () => openSharedPack(pack));
+    grid.appendChild(card);
+  });
+
+  // ── User's own packs ──
   packs.forEach((pack, i) => {
     const ws = counts[pack.id] || [];
     const total = ws.length;
@@ -1575,41 +1660,12 @@ async function renderPacksGrid() {
     grid.appendChild(card);
   });
 
-  // Add new pack button
+  // Add new pack button (always last)
   const addCard = document.createElement('div');
   addCard.className = 'pack-add-card';
   addCard.innerHTML = '<div class="pack-add-icon">⊕</div><div class="pack-add-label">TẠO GÓI MỚI</div>';
   addCard.onclick = () => openPackModal();
   grid.appendChild(addCard);
-
-  // ── Section: Gói chung từ Admin ──
-  if (sharedPacks.length) {
-    const sharedLabel = document.createElement('div');
-    sharedLabel.className = 'shared-section-label';
-    sharedLabel.style.cssText = 'grid-column:1/-1';
-    sharedLabel.innerHTML = '⬡ Gói từ vựng từ Admin';
-    grid.appendChild(sharedLabel);
-
-    sharedPacks.forEach(pack => {
-      const total = (pack.words || []).length;
-      // Load user's progress for this shared pack
-      const prog = pack._userProgress || {};
-      const mastered = (pack.words||[]).filter(w => prog[w.word]).length;
-      const pct = total ? Math.round(mastered / total * 100) : 0;
-      const card = document.createElement('div');
-      card.className = 'shared-pack-card';
-      card.innerHTML = `
-        <div class="shared-pack-badge">⬡ Admin · ${pack.visibility === 'all' ? '🌐 Tất cả' : '👤 Riêng bạn'}</div>
-        <div class="pack-icon">${pack.icon || '🌟'}</div>
-        <div class="pack-name">${h(pack.name)}</div>
-        <div class="pack-meta">${pack.desc ? h(pack.desc) + '<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
-        <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%;background:linear-gradient(90deg,var(--neon-yellow),var(--neon-pink))"></div></div>
-        <div class="pack-progress-label" style="color:rgba(255,230,0,0.5)">${pct}% hoàn thành</div>
-      `;
-      card.addEventListener('click', () => openSharedPack(pack));
-      grid.appendChild(card);
-    });
-  }
 }
 
 async function openPack(pack) {
@@ -2309,6 +2365,16 @@ async function recordStudyActivity(wordCount) {
 }
 
 
+
+// ── MAIN NAV TAB SWITCHER ──
+function switchMainTab(tab) {
+  document.getElementById('mainTabPacks').style.display = tab === 'packs' ? '' : 'none';
+  document.getElementById('mainTabChallenge').style.display = tab === 'challenge' ? '' : 'none';
+  document.getElementById('mainNavPacks').classList.toggle('active', tab === 'packs');
+  document.getElementById('mainNavChallenge').classList.toggle('active', tab === 'challenge');
+  if (tab === 'challenge') loadAndRenderChallenge();
+}
+
 // ============================================================
 //  CHALLENGE SYSTEM
 //  Firebase: /challenges/{challengeId}
@@ -2318,9 +2384,8 @@ async function recordStudyActivity(wordCount) {
 // ============================================================
 
 async function loadAndRenderChallenge() {
-  const section = document.getElementById('challengeSection');
   const container = document.getElementById('challengeCardContainer');
-  if (!isLoggedIn() || !section || !container) return;
+  if (!isLoggedIn() || !container) return;
 
   try {
     // Load active challenge (take the most recent active one)
@@ -2329,17 +2394,12 @@ async function loadAndRenderChallenge() {
     if (!challenges.length) {
       // Admin sees create button even if no challenge
       if (isAdmin()) {
-        section.classList.add('visible');
-        container.innerHTML = `<button class="btn-challenge-create" onclick="openChallengeModal()">＋ Tạo thử thách mới</button>`;
-      } else {
-        section.classList.remove('visible');
+          container.innerHTML = `<button class="btn-challenge-create" onclick="openChallengeModal()">＋ Tạo thử thách mới</button>`;
       }
       return;
     }
 
     const challenge = challenges.sort((a,b) => b.createdAt - a.createdAt)[0];
-    section.classList.add('visible');
-
     // Load user participation
     const uid = getUID();
     const userChalRef = window._doc(window._db, 'users', uid, 'challenges', challenge.id);
@@ -2396,6 +2456,8 @@ async function loadAndRenderChallenge() {
     }
 
     renderChallengeCard(challenge, status, studyDays, participants);
+  const dot = document.getElementById('challengeNavDot');
+  if (dot) dot.style.display = (status === 'active' || !status) ? 'inline-block' : 'none';
   } catch(e) { console.warn('Challenge load error:', e); }
 }
 
