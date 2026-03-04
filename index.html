@@ -2742,6 +2742,8 @@ async function loadVisibleSharedPacks() {
       if (!data.words?.length) continue;
       const vis = data.visibility || 'hidden';
       if (vis === 'hidden') continue;
+      // Skip packs shared by the current user themselves (admin sees own packs in own section)
+      if (data.sharedBy === uid) continue;
       if (vis === 'all' || (vis === 'specific' && (data.allowedUsers||[]).includes(uid))) {
         let userProgress = {};
         try {
