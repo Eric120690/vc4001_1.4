@@ -180,15 +180,15 @@
   .pack-admin-badge {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    font-size: 0.58rem;
-    letter-spacing: 0.1em;
+    gap: 3px;
+    font-size: 0.52rem;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: rgba(255,230,0,0.7);
-    background: rgba(255,230,0,0.08);
-    border: 1px solid rgba(255,230,0,0.2);
-    border-radius: 999px;
-    padding: 2px 7px;
+    color: rgba(255,255,255,0.2);
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
     margin-bottom: 6px;
     font-family: 'Space Mono', monospace;
   }
@@ -1238,22 +1238,8 @@
   </div>
 
   <!-- ===== STATS BAR ===== -->
-  <div class="stats-bar" id="statsBar" style="display:none">
-    <div class="stats-pill hours" id="statPillHours" title="Tổng thời gian học">
-      <span class="stats-pill-icon">⏱</span>
-      <span class="stats-pill-val" id="statHoursVal">0g 0p</span>
-      <span class="stats-pill-lbl">học</span>
-    </div>
-    <div class="stats-pill seen" id="statPillSeen" title="Tổng số từ đã xem (lật flashcard)">
-      <span class="stats-pill-icon">👁</span>
-      <span class="stats-pill-val" id="statSeenVal">0</span>
-      <span class="stats-pill-lbl">đã xem</span>
-    </div>
-    <div class="stats-pill mastered-pill" id="statPillMastered" title="Tổng số từ đã thuộc">
-      <span class="stats-pill-icon">✦</span>
-      <span class="stats-pill-val" id="statMasteredVal">0</span>
-      <span class="stats-pill-lbl">đã thuộc</span>
-    </div>
+  <div id="statsBar" style="display:none;text-align:center;margin-bottom:14px">
+    <span id="statHoursVal" style="font-family:'Space Mono',monospace;font-size:0.65rem;color:rgba(255,255,255,0.25);letter-spacing:0.08em">⏱ 0p học</span>
   </div>
 
   <!-- ===== MAIN NAV ===== -->
@@ -1608,7 +1594,14 @@ async function renderPacksGrid() {
 
   const icons = ['📘','📗','📙','📕','📒','📓','📔','📑'];
 
-  // ── Shared packs FIRST (admin curated) ──
+  // ── Add new pack button FIRST ──
+  const addCard = document.createElement('div');
+  addCard.className = 'pack-add-card';
+  addCard.innerHTML = '<div class="pack-add-icon">⊕</div><div class="pack-add-label">TẠO GÓI MỚI</div>';
+  addCard.onclick = () => openPackModal();
+  grid.appendChild(addCard);
+
+  // ── Shared packs (admin curated) ──
   sharedPacks.forEach((pack, i) => {
     const total = (pack.words || []).length;
     const prog = pack._userProgress || {};
@@ -1660,12 +1653,6 @@ async function renderPacksGrid() {
     grid.appendChild(card);
   });
 
-  // Add new pack button (always last)
-  const addCard = document.createElement('div');
-  addCard.className = 'pack-add-card';
-  addCard.innerHTML = '<div class="pack-add-icon">⊕</div><div class="pack-add-label">TẠO GÓI MỚI</div>';
-  addCard.onclick = () => openPackModal();
-  grid.appendChild(addCard);
 }
 
 async function openPack(pack) {
@@ -2701,10 +2688,8 @@ async function refreshStatsBar() {
     const packSnaps = await Promise.all(userPacks.map(p => window._getDoc(packDoc(p.id)).catch(()=>null)));
     packSnaps.forEach(s => { if (s && s.exists()) mastered += (s.data().words||[]).filter(w=>w.mastered).length; });
 
-    document.getElementById('statHoursVal').textContent = fmtMinutes(mins);
-    document.getElementById('statSeenVal').textContent = seen.toLocaleString('vi');
-    document.getElementById('statMasteredVal').textContent = mastered.toLocaleString('vi');
-    document.getElementById('statsBar').style.display = 'flex';
+    document.getElementById('statHoursVal').textContent = '⏱ ' + fmtMinutes(mins) + ' học';
+    document.getElementById('statsBar').style.display = '';
   } catch(e) {}
 }
 
