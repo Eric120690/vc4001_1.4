@@ -1610,12 +1610,14 @@ async function renderPacksGrid() {
     const card = document.createElement('div');
     card.className = 'pack-card';
     card.innerHTML = `
-      <div class="pack-admin-badge">⬡ Admin Share</div>
-      <div class="pack-icon">${pack.icon || icons[i % icons.length]}</div>
+      <div class="pack-icon">${icons[i % icons.length]}</div>
       <div class="pack-name">${h(pack.name)}</div>
       <div class="pack-meta">${pack.desc ? h(pack.desc) + '<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
       <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%"></div></div>
-      <div class="pack-progress-label">${pct}% hoàn thành</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
+        <div class="pack-progress-label" style="margin-top:0">${pct}% hoàn thành</div>
+        <div class="pack-admin-badge">⬡ admin share</div>
+      </div>
     `;
     card.addEventListener('click', () => openSharedPack(pack));
     grid.appendChild(card);
