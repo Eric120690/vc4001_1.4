@@ -1555,22 +1555,13 @@ async function showPacksScreen() {
   document.getElementById('screen-study').classList.remove('active');
   currentPack = null; words = [];
   packs = await loadPacks();
-  renderPacksGrid();
-  refreshStatsBar();
-}
-
-async function showPacksScreen() {
-  statsStopSession();
-  document.getElementById('screen-packs').classList.add('active');
-  document.getElementById('screen-study').classList.remove('active');
-  currentPack = null; words = [];
-  packs = await loadPacks();
-  renderPacksGrid();
   refreshStatsBar();
   // Show main nav for logged-in users, reset to packs tab
   if (isLoggedIn()) {
     document.getElementById('mainNav').classList.add('visible');
     switchMainTab('packs');
+  } else {
+    renderPacksGrid();
   }
 }
 
@@ -1587,8 +1578,10 @@ async function renderPacksGrid() {
     } catch(e) {}
   }));
 
-  // Load shared packs visible to this user
-  const sharedPacks = await loadVisibleSharedPacks();
+  // Load shared packs visible to this user, exclude own packs (same ID)
+  const allSharedPacks = await loadVisibleSharedPacks();
+  const ownPackIds = new Set(packs.map(p => p.id));
+  const sharedPacks = allSharedPacks.filter(p => !ownPackIds.has(p.id));
 
   grid.innerHTML = '';
 
@@ -1755,6 +1748,10 @@ async function deletePack(id, e) {
   const p = packs.find(p => p.id === id);
   if (!confirm(`Xóa gói "${p?.name}"? Toàn bộ từ vựng sẽ bị mất.`)) return;
   try { await window._deleteDoc(packDoc(id)); } catch(err) {}
+  // Nếu admin đang xóa, xóa luôn shared pack tương ứng nếu có
+  if (isAdmin()) {
+    try { await window._deleteDoc(window._doc(window._db, 'sharedPacks', id)); } catch(err) {}
+  }
   packs = packs.filter(p => p.id !== id);
   await savePacks();
   renderPacksGrid();
@@ -2393,6 +2390,7 @@ function switchMainTab(tab) {
   document.getElementById('mainTabChallenge').style.display = tab === 'challenge' ? '' : 'none';
   document.getElementById('mainNavPacks').classList.toggle('active', tab === 'packs');
   document.getElementById('mainNavChallenge').classList.toggle('active', tab === 'challenge');
+  if (tab === 'packs') renderPacksGrid();
   if (tab === 'challenge') loadAndRenderChallenge();
 }
 
@@ -2742,8 +2740,6 @@ async function loadVisibleSharedPacks() {
       if (!data.words?.length) continue;
       const vis = data.visibility || 'hidden';
       if (vis === 'hidden') continue;
-      // Skip packs shared by the current user themselves (admin sees own packs in own section)
-      if (data.sharedBy === uid) continue;
       if (vis === 'all' || (vis === 'specific' && (data.allowedUsers||[]).includes(uid))) {
         let userProgress = {};
         try {
