@@ -95,7 +95,102 @@
   .container { max-width:920px; margin:0 auto; padding:30px 20px; position:relative; z-index:2; }
 
   /* HEADER */
-  .header { text-align:center; margin-bottom:40px; }
+  .header { text-align:center; margin-bottom:28px; }
+
+  /* ── STATS BAR ── */
+  .stats-bar {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+  .stats-pill {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 999px;
+    padding: 6px 14px 6px 10px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    cursor: default;
+  }
+  .stats-pill:hover { border-color: rgba(255,255,255,0.18); box-shadow: 0 2px 12px rgba(0,0,0,0.3); }
+  .stats-pill-icon { font-size: 0.88rem; line-height:1; }
+  .stats-pill-val { font-size: 0.82rem; font-weight: 700; letter-spacing: 0.02em; }
+  .stats-pill-lbl { color: rgba(255,255,255,0.35); font-size: 0.65rem; letter-spacing: 0.06em; text-transform: uppercase; }
+  .stats-pill.hours  { border-color: rgba(0,245,255,0.2); }
+  .stats-pill.hours  .stats-pill-val { color: var(--neon-cyan); }
+  .stats-pill.seen   { border-color: rgba(191,0,255,0.2); }
+  .stats-pill.seen   .stats-pill-val { color: #bf80ff; }
+  .stats-pill.mastered-pill { border-color: rgba(57,255,20,0.2); }
+  .stats-pill.mastered-pill .stats-pill-val { color: var(--neon-green); }
+  @keyframes statsPop { 0%{transform:scale(1)} 40%{transform:scale(1.18)} 100%{transform:scale(1)} }
+  .stats-pill.pop { animation: statsPop 0.35s ease; }
+
+  /* ── CHALLENGE SECTION ── */
+  .challenge-section { margin-bottom: 20px; display: none; }
+  .challenge-section.visible { display: block; }
+  .challenge-card {
+    background: linear-gradient(135deg, rgba(255,230,0,0.06), rgba(255,0,110,0.06));
+    border: 1.5px solid rgba(255,230,0,0.18); border-radius: 18px;
+    padding: 18px 20px; position: relative; overflow: hidden; transition: border-color 0.3s;
+  }
+  .challenge-card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:2px;
+    background: linear-gradient(90deg, var(--neon-yellow), var(--neon-pink), var(--neon-purple));
+  }
+  .challenge-card:hover { border-color: rgba(255,230,0,0.35); }
+  .challenge-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:10px; }
+  .challenge-badge {
+    font-size:0.6rem; letter-spacing:0.18em; text-transform:uppercase; color:var(--neon-yellow);
+    background:rgba(255,230,0,0.1); border:1px solid rgba(255,230,0,0.25);
+    border-radius:999px; padding:3px 10px; font-family:'Space Mono',monospace;
+  }
+  .challenge-title { font-size:1rem; font-weight:700; color:#fff; letter-spacing:0.01em; flex:1; }
+  .challenge-desc { font-size:0.75rem; color:rgba(255,255,255,0.45); margin-bottom:14px; line-height:1.5; }
+  .challenge-meta { display:flex; align-items:center; gap:16px; margin-bottom:14px; flex-wrap:wrap; }
+  .challenge-meta-item { display:flex; align-items:center; gap:5px; font-size:0.72rem; color:rgba(255,255,255,0.5); font-family:'Space Mono',monospace; }
+  .challenge-meta-item strong { color:#fff; font-size:0.82rem; }
+  .challenge-progress-wrap { margin-bottom:14px; }
+  .challenge-progress-label { display:flex; justify-content:space-between; font-size:0.68rem; color:rgba(255,255,255,0.4); margin-bottom:5px; font-family:'Space Mono',monospace; }
+  .challenge-progress-bar { height:5px; background:rgba(255,255,255,0.07); border-radius:999px; overflow:hidden; }
+  .challenge-progress-fill { height:100%; background:linear-gradient(90deg,var(--neon-yellow),var(--neon-pink)); border-radius:999px; transition:width 0.6s cubic-bezier(.4,0,.2,1); }
+  .challenge-days { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+  .challenge-day-dot { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:0.6rem; font-family:'Space Mono',monospace; font-weight:700; border:1.5px solid rgba(255,255,255,0.08); color:rgba(255,255,255,0.2); background:rgba(255,255,255,0.03); transition:all 0.3s; }
+  .challenge-day-dot.done { background:rgba(57,255,20,0.12); border-color:rgba(57,255,20,0.4); color:var(--neon-green); }
+  .challenge-day-dot.today { background:rgba(255,230,0,0.12); border-color:rgba(255,230,0,0.5); color:var(--neon-yellow); box-shadow:0 0 8px rgba(255,230,0,0.25); }
+  .challenge-day-dot.failed { background:rgba(255,0,110,0.08); border-color:rgba(255,0,110,0.3); color:var(--neon-pink); }
+  .challenge-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .btn-challenge-join { background:linear-gradient(135deg,rgba(255,230,0,0.15),rgba(255,0,110,0.1)); border:1.5px solid rgba(255,230,0,0.4); color:var(--neon-yellow); font-size:0.75rem; font-weight:700; font-family:'Space Mono',monospace; letter-spacing:0.06em; padding:8px 18px; border-radius:999px; cursor:pointer; transition:all 0.2s; }
+  .btn-challenge-join:hover { background:rgba(255,230,0,0.2); box-shadow:0 4px 20px rgba(255,230,0,0.2); transform:translateY(-2px); }
+  .btn-challenge-joined { background:rgba(57,255,20,0.08); border:1.5px solid rgba(57,255,20,0.3); color:var(--neon-green); font-size:0.72rem; font-weight:700; font-family:'Space Mono',monospace; letter-spacing:0.06em; padding:8px 16px; border-radius:999px; cursor:default; opacity:0.85; }
+  .challenge-status-tag { font-size:0.68rem; font-family:'Space Mono',monospace; padding:5px 12px; border-radius:999px; }
+  .challenge-status-tag.success { background:rgba(57,255,20,0.1); border:1px solid rgba(57,255,20,0.3); color:var(--neon-green); }
+  .challenge-status-tag.failed { background:rgba(255,0,110,0.1); border:1px solid rgba(255,0,110,0.3); color:var(--neon-pink); }
+  .btn-challenge-create { font-size:0.7rem; background:rgba(255,255,255,0.04); border:1px dashed rgba(255,255,255,0.15); color:rgba(255,255,255,0.35); padding:6px 14px; border-radius:999px; cursor:pointer; transition:all 0.2s; font-family:'Space Mono',monospace; letter-spacing:0.05em; }
+  .btn-challenge-create:hover { border-color:rgba(255,230,0,0.4); color:var(--neon-yellow); }
+  .challenge-modal-overlay { position:fixed; inset:0; z-index:1100; background:rgba(0,0,0,0.75); backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity 0.25s; }
+  .challenge-modal-overlay.show { opacity:1; pointer-events:all; }
+  .challenge-modal { background:#0d0d1f; border:1px solid rgba(255,230,0,0.2); border-radius:20px; padding:28px; width:100%; max-width:400px; margin:16px; transform:translateY(16px); transition:transform 0.25s; }
+  .challenge-modal-overlay.show .challenge-modal { transform:translateY(0); }
+  .challenge-modal-title { font-size:0.9rem; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:var(--neon-yellow); margin-bottom:18px; }
+  .challenge-modal input, .challenge-modal textarea { width:100%; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:10px 14px; color:#fff; font-size:0.82rem; font-family:inherit; margin-bottom:10px; outline:none; resize:none; transition:border-color 0.2s; }
+  .challenge-modal input:focus, .challenge-modal textarea:focus { border-color:rgba(255,230,0,0.4); }
+  .challenge-modal-actions { display:flex; gap:8px; margin-top:6px; }
+  .challenge-participants { margin-top:14px; padding-top:14px; border-top:1px solid rgba(255,255,255,0.06); }
+  .challenge-participants-title { font-size:0.62rem; letter-spacing:0.18em; text-transform:uppercase; color:rgba(255,255,255,0.3); margin-bottom:8px; font-family:'Space Mono',monospace; }
+  .challenge-participants-list { display:flex; flex-wrap:wrap; gap:6px; }
+  .challenge-participant-chip { font-size:0.68rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); border-radius:999px; padding:3px 10px; color:rgba(255,255,255,0.55); display:flex; align-items:center; gap:5px; }
+  .challenge-participant-chip .chip-days { font-family:'Space Mono',monospace; font-size:0.6rem; font-weight:700; }
+  .challenge-participant-chip.chip-done { border-color:rgba(57,255,20,0.3); color:var(--neon-green); }
+  .challenge-participant-chip.chip-active { border-color:rgba(255,230,0,0.25); color:rgba(255,230,0,0.8); }
+  .challenge-participant-chip.chip-failed { border-color:rgba(255,0,110,0.2); color:rgba(255,0,110,0.6); }
+  @keyframes challengeToast { 0%{opacity:0;transform:translateY(20px) scale(0.95)} 15%{opacity:1;transform:translateY(0) scale(1)} 80%{opacity:1} 100%{opacity:0} }
+  .challenge-toast { position:fixed; bottom:32px; left:50%; transform:translateX(-50%); background:#0d0d1f; border:1.5px solid rgba(255,230,0,0.35); border-radius:14px; padding:14px 22px; font-size:0.82rem; color:#fff; text-align:center; z-index:9999; pointer-events:none; animation:challengeToast 3.5s ease forwards; max-width:340px; box-shadow:0 8px 40px rgba(0,0,0,0.5); }
   .logo {
     font-family:'Syne',sans-serif; font-size:3.2rem; font-weight:800; letter-spacing:0.12em;
     background:linear-gradient(90deg, var(--neon-cyan), var(--neon-purple), var(--neon-pink));
@@ -1025,6 +1120,20 @@
   </div>
 </div>
 
+
+<!-- CHALLENGE CREATE MODAL -->
+<div class="challenge-modal-overlay" id="challengeCreateModal">
+  <div class="challenge-modal">
+    <div class="challenge-modal-title">⚡ Tạo thử thách mới</div>
+    <input type="text" id="challengeNameInput" placeholder="Tên thử thách, VD: 7 ngày liên tục..." maxlength="60">
+    <textarea id="challengeDescInput" rows="2" placeholder="Mô tả ngắn (tùy chọn)" maxlength="120"></textarea>
+    <div class="challenge-modal-actions">
+      <button class="btn-primary" style="flex:1;justify-content:center" onclick="saveChallenge()">✓ Tạo thử thách</button>
+      <button class="btn-cancel" onclick="closeChallengeModal()">✕ Hủy</button>
+    </div>
+  </div>
+</div>
+
 <!-- IMPORT MODAL -->
 <div class="modal-overlay" id="importModal">
   <div class="modal">
@@ -1066,12 +1175,34 @@
     <div class="tagline">Vocabulary Training System</div>
   </div>
 
+  <!-- ===== STATS BAR ===== -->
+  <div class="stats-bar" id="statsBar" style="display:none">
+    <div class="stats-pill hours" id="statPillHours" title="Tổng thời gian học">
+      <span class="stats-pill-icon">⏱</span>
+      <span class="stats-pill-val" id="statHoursVal">0g 0p</span>
+      <span class="stats-pill-lbl">học</span>
+    </div>
+    <div class="stats-pill seen" id="statPillSeen" title="Tổng số từ đã xem (lật flashcard)">
+      <span class="stats-pill-icon">👁</span>
+      <span class="stats-pill-val" id="statSeenVal">0</span>
+      <span class="stats-pill-lbl">đã xem</span>
+    </div>
+    <div class="stats-pill mastered-pill" id="statPillMastered" title="Tổng số từ đã thuộc">
+      <span class="stats-pill-icon">✦</span>
+      <span class="stats-pill-val" id="statMasteredVal">0</span>
+      <span class="stats-pill-lbl">đã thuộc</span>
+    </div>
+  </div>
+
+  <!-- ===== CHALLENGE SECTION ===== -->
+  <div class="challenge-section" id="challengeSection">
+    <div class="section-label" style="margin-bottom:12px">⚡ Thử thách</div>
+    <div id="challengeCardContainer"></div>
+  </div>
+
   <!-- ===== PACKS SCREEN ===== -->
   <div class="screen active" id="screen-packs">
     <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <div class="section-label">◈ Gói từ vựng của bạn</div>
-      </div>
       <div class="packs-grid" id="packsGrid"></div>
     </div>
   </div>
@@ -1313,6 +1444,7 @@ async function openSharedPack(pack) {
   document.getElementById('studyPackName').textContent = pack.name;
   document.getElementById('screen-packs').classList.remove('active');
   document.getElementById('screen-study').classList.add('active');
+  statsStartSession();
 
   // Ẩn tab "Nhập Từ" với shared pack
   const inputTab = document.getElementById('tabInput');
@@ -1363,19 +1495,25 @@ function backToPacks() {
 //  PACK SCREEN
 // ============================================================
 async function showPacksScreen() {
+  statsStopSession();
   document.getElementById('screen-packs').classList.add('active');
   document.getElementById('screen-study').classList.remove('active');
   currentPack = null; words = [];
   packs = await loadPacks();
   renderPacksGrid();
+  refreshStatsBar();
+  loadAndRenderChallenge();
 }
 
 async function showPacksScreen() {
+  statsStopSession();
   document.getElementById('screen-packs').classList.add('active');
   document.getElementById('screen-study').classList.remove('active');
   currentPack = null; words = [];
   packs = await loadPacks();
   renderPacksGrid();
+  refreshStatsBar();
+  loadAndRenderChallenge();
 }
 
 async function renderPacksGrid() {
@@ -1479,6 +1617,7 @@ async function openPack(pack) {
   document.getElementById('studyPackName').textContent = pack.name;
   document.getElementById('screen-packs').classList.remove('active');
   document.getElementById('screen-study').classList.add('active');
+  statsStartSession();
   switchTab('input');
   words = [];
 
@@ -1888,7 +2027,14 @@ function renderFlashcard() {
   autoSpeakCurrent();
 }
 
-function flipCard() { const c=document.getElementById('theCard'); if(!c)return; isFlipped=!isFlipped; c.classList.toggle('flipped',isFlipped); }
+function flipCard() {
+  const c=document.getElementById('theCard'); if(!c)return;
+  const wasFlipped = isFlipped;
+  isFlipped=!isFlipped;
+  c.classList.toggle('flipped',isFlipped);
+  // Only count as "seen" when flipping to reveal the back for the first time per card
+  if (!wasFlipped) { statsRecordFlip(); }
+}
 
 function handleKey(e) {
   if(e.key==='ArrowRight'){ e.preventDefault(); skipWord(); }
@@ -1916,7 +2062,7 @@ function markMastered() {
   if(!studyQueue[currentIndex])return;
   const w=studyQueue[currentIndex].word;
   const i=words.findIndex(x=>x.word===w);
-  if(i>=0){words[i].mastered=true; saveData(); recordStudyActivity(1);}
+  if(i>=0){words[i].mastered=true; saveData(); recordStudyActivity(1); refreshStatsBar(); challengeRecordStudyDay();}
   studyQueue.splice(currentIndex,1);
   if(currentIndex>=studyQueue.length) currentIndex=0;
   if(!studyQueue.length) buildQueue();
@@ -2162,8 +2308,345 @@ async function recordStudyActivity(wordCount) {
   } catch(e) {}
 }
 
+
 // ============================================================
-//  SHARED PACKS — Firebase: /sharedPacks/{packId}
+//  CHALLENGE SYSTEM
+//  Firebase: /challenges/{challengeId}
+//  Structure: { name, desc, createdAt, createdBy, durationDays, active }
+//  User participation: /users/{uid}/challenges/{challengeId}
+//  Structure: { joinedAt, studyDays:[], status:'active'|'success'|'failed' }
+// ============================================================
+
+async function loadAndRenderChallenge() {
+  const section = document.getElementById('challengeSection');
+  const container = document.getElementById('challengeCardContainer');
+  if (!isLoggedIn() || !section || !container) return;
+
+  try {
+    // Load active challenge (take the most recent active one)
+    const snap = await window._getDocs(window._collection(window._db, 'challenges'));
+    const challenges = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => c.active);
+    if (!challenges.length) {
+      // Admin sees create button even if no challenge
+      if (isAdmin()) {
+        section.classList.add('visible');
+        container.innerHTML = `<button class="btn-challenge-create" onclick="openChallengeModal()">＋ Tạo thử thách mới</button>`;
+      } else {
+        section.classList.remove('visible');
+      }
+      return;
+    }
+
+    const challenge = challenges.sort((a,b) => b.createdAt - a.createdAt)[0];
+    section.classList.add('visible');
+
+    // Load user participation
+    const uid = getUID();
+    const userChalRef = window._doc(window._db, 'users', uid, 'challenges', challenge.id);
+    const userChalSnap = await window._getDoc(userChalRef).catch(()=>null);
+    const userChal = userChalSnap && userChalSnap.exists() ? userChalSnap.data() : null;
+
+    // Check/update status
+    let status = userChal ? userChal.status : null;
+    let studyDays = userChal ? (userChal.studyDays || []) : [];
+
+    if (status === 'active') {
+      // Check if user missed a day
+      const today = new Date().toISOString().slice(0,10);
+      const joinDate = new Date(userChal.joinedAt);
+      const daysSinceJoin = Math.floor((Date.now() - joinDate.getTime()) / 86400000);
+      if (daysSinceJoin > 0) {
+        // Build expected days between join and yesterday
+        let missed = false;
+        for (let i = 0; i < Math.min(daysSinceJoin, challenge.durationDays); i++) {
+          const d = new Date(joinDate); d.setDate(d.getDate() + i);
+          const ds = d.toISOString().slice(0,10);
+          if (ds < today && !studyDays.includes(ds)) { missed = true; break; }
+        }
+        if (missed) {
+          status = 'failed';
+          await window._setDoc(userChalRef, { status: 'failed' }, { merge: true });
+          showChallengeToast('💔 Bạn đã gián đoạn thử thách. Đừng nản — thử lại nhé!');
+        }
+      }
+      // Check if completed
+      if (studyDays.length >= challenge.durationDays) {
+        status = 'success';
+        await window._setDoc(userChalRef, { status: 'success' }, { merge: true });
+        showChallengeToast('🏆 Chúc mừng! Bạn đã hoàn thành thử thách ' + challenge.name + '!');
+      }
+    }
+
+    // Load all participants for display
+    const allUsersSnap = await window._getDocs(window._collection(window._db, 'users')).catch(()=>null);
+    const participants = [];
+    if (allUsersSnap) {
+      for (const userDoc of allUsersSnap.docs) {
+        const ucSnap = await window._getDoc(window._doc(window._db, 'users', userDoc.id, 'challenges', challenge.id)).catch(()=>null);
+        if (ucSnap && ucSnap.exists()) {
+          const uc = ucSnap.data();
+          const udata = userDoc.data();
+          participants.push({
+            name: udata.displayName || udata.email?.split('@')[0] || 'Ẩn danh',
+            status: uc.status || 'active',
+            days: (uc.studyDays || []).length
+          });
+        }
+      }
+    }
+
+    renderChallengeCard(challenge, status, studyDays, participants);
+  } catch(e) { console.warn('Challenge load error:', e); }
+}
+
+function renderChallengeCard(challenge, userStatus, studyDays, participants) {
+  const container = document.getElementById('challengeCardContainer');
+  const dur = challenge.durationDays || 7;
+  const today = new Date().toISOString().slice(0,10);
+  const totalJoined = participants.length;
+
+  // Build day dots (only if joined)
+  let dotsHtml = '';
+  if (userStatus) {
+    const dots = [];
+    for (let i = 1; i <= dur; i++) {
+      // We can't know exact day positions without joinedAt here, so just use index
+      const isDone = studyDays.length >= i;
+      const isCurrent = studyDays.length === i - 1 && userStatus === 'active';
+      const isFailed = userStatus === 'failed' && !isDone;
+      let cls = '';
+      if (isDone) cls = 'done';
+      else if (isCurrent) cls = 'today';
+      else if (isFailed) cls = 'failed';
+      dots.push(`<div class="challenge-day-dot ${cls}">${i}</div>`);
+    }
+    dotsHtml = `<div class="challenge-days">${dots.join('')}</div>`;
+  }
+
+  // Progress
+  const pct = userStatus ? Math.round((studyDays.length / dur) * 100) : 0;
+  const progressHtml = userStatus ? `
+    <div class="challenge-progress-wrap">
+      <div class="challenge-progress-label">
+        <span>${studyDays.length}/${dur} ngày</span>
+        <span>${pct}%</span>
+      </div>
+      <div class="challenge-progress-bar">
+        <div class="challenge-progress-fill" style="width:${pct}%"></div>
+      </div>
+    </div>` : '';
+
+  // Action button
+  let actionHtml = '';
+  if (!userStatus) {
+    actionHtml = `<button class="btn-challenge-join" onclick="joinChallenge('${challenge.id}')">⚡ Tham gia ngay</button>`;
+  } else if (userStatus === 'active') {
+    actionHtml = `<span class="btn-challenge-joined">✓ Đang tham gia</span>`;
+  } else if (userStatus === 'success') {
+    actionHtml = `<span class="challenge-status-tag success">🏆 Hoàn thành!</span>
+      <button class="btn-challenge-join" onclick="joinChallenge('${challenge.id}')">↺ Thử lại</button>`;
+  } else if (userStatus === 'failed') {
+    actionHtml = `<span class="challenge-status-tag failed">✕ Đã gián đoạn</span>
+      <button class="btn-challenge-join" onclick="joinChallenge('${challenge.id}')">↺ Thử lại</button>`;
+  }
+
+  if (isAdmin()) {
+    actionHtml += ` <button class="btn-challenge-create" onclick="openChallengeModal()">✎ Sửa/Tạo mới</button>`;
+    if (challenge.active) {
+      actionHtml += ` <button class="btn-challenge-create" style="color:rgba(255,0,110,0.5);border-color:rgba(255,0,110,0.2)" onclick="endChallenge('${challenge.id}')">✕ Kết thúc</button>`;
+    }
+  }
+
+  // Participants chips
+  const chipHtml = participants.slice(0, 12).map(p => {
+    let cls = p.status === 'success' ? 'chip-done' : p.status === 'failed' ? 'chip-failed' : 'chip-active';
+    let icon = p.status === 'success' ? '🏆' : p.status === 'failed' ? '✕' : '🔥';
+    return `<div class="challenge-participant-chip ${cls}">${icon} ${p.name} <span class="chip-days">${p.days}ng</span></div>`;
+  }).join('');
+  const moreChips = participants.length > 12 ? `<div class="challenge-participant-chip">+${participants.length-12} người</div>` : '';
+
+  container.innerHTML = `
+    <div class="challenge-card">
+      <div class="challenge-header">
+        <div class="challenge-title">${challenge.name}</div>
+        <div class="challenge-badge">⏱ ${dur} NGÀY</div>
+      </div>
+      ${challenge.desc ? `<div class="challenge-desc">${challenge.desc}</div>` : ''}
+      <div class="challenge-meta">
+        <div class="challenge-meta-item">👥 <strong>${totalJoined}</strong> người đang tham gia</div>
+        <div class="challenge-meta-item">✦ <strong>${participants.filter(p=>p.status==='success').length}</strong> đã hoàn thành</div>
+      </div>
+      ${dotsHtml}
+      ${progressHtml}
+      <div class="challenge-actions">${actionHtml}</div>
+      ${totalJoined > 0 ? `
+      <div class="challenge-participants">
+        <div class="challenge-participants-title">Người tham gia</div>
+        <div class="challenge-participants-list">${chipHtml}${moreChips}</div>
+      </div>` : ''}
+    </div>`;
+}
+
+async function joinChallenge(challengeId) {
+  if (!isLoggedIn()) return;
+  const uid = getUID();
+  const today = new Date().toISOString().slice(0,10);
+  const userChalRef = window._doc(window._db, 'users', uid, 'challenges', challengeId);
+  await window._setDoc(userChalRef, {
+    joinedAt: Date.now(), studyDays: [], status: 'active'
+  });
+  showChallengeToast('⚡ Đã tham gia thử thách! Chúc bạn thành công!');
+  loadAndRenderChallenge();
+}
+
+async function endChallenge(challengeId) {
+  if (!isAdmin()) return;
+  if (!confirm('Kết thúc thử thách này? Người tham gia sẽ không còn thấy nó nữa.')) return;
+  await window._setDoc(window._doc(window._db, 'challenges', challengeId), { active: false }, { merge: true });
+  loadAndRenderChallenge();
+}
+
+// Called daily when user studies — mark today as a study day in active challenges
+async function challengeRecordStudyDay() {
+  if (!isLoggedIn()) return;
+  const uid = getUID();
+  const today = new Date().toISOString().slice(0,10);
+  try {
+    const snap = await window._getDocs(window._collection(window._db, 'challenges'));
+    const activeChallenges = snap.docs.map(d=>({id:d.id,...d.data()})).filter(c=>c.active);
+    for (const ch of activeChallenges) {
+      const ref = window._doc(window._db, 'users', uid, 'challenges', ch.id);
+      const ucSnap = await window._getDoc(ref).catch(()=>null);
+      if (!ucSnap || !ucSnap.exists()) continue;
+      const uc = ucSnap.data();
+      if (uc.status !== 'active') continue;
+      const days = uc.studyDays || [];
+      if (!days.includes(today)) {
+        days.push(today);
+        await window._setDoc(ref, { studyDays: days }, { merge: true });
+      }
+    }
+  } catch(e) {}
+}
+
+function openChallengeModal() {
+  document.getElementById('challengeCreateModal').classList.add('show');
+}
+function closeChallengeModal() {
+  document.getElementById('challengeCreateModal').classList.remove('show');
+  document.getElementById('challengeNameInput').value = '';
+  document.getElementById('challengeDescInput').value = '';
+}
+async function saveChallenge() {
+  if (!isAdmin()) return;
+  const name = document.getElementById('challengeNameInput').value.trim();
+  if (!name) { alert('Vui lòng nhập tên thử thách!'); return; }
+  const desc = document.getElementById('challengeDescInput').value.trim();
+  const id = 'ch_' + Date.now();
+  await window._setDoc(window._doc(window._db, 'challenges', id), {
+    name, desc, durationDays: 7, active: true,
+    createdAt: Date.now(), createdBy: getUID()
+  });
+  closeChallengeModal();
+  showChallengeToast('✦ Đã tạo thử thách thành công!');
+  loadAndRenderChallenge();
+}
+
+function showChallengeToast(msg) {
+  const existing = document.querySelector('.challenge-toast');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.className = 'challenge-toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3600);
+}
+
+// ============================================================
+// ============================================================
+//  STATS BAR — giờ học, từ đã xem, từ đã thuộc
+// ============================================================
+
+let _statsSessionStart = null;  // Date when current study session began
+let _statsSessionActive = false;
+
+// Start tracking time when entering study screen
+function statsStartSession() {
+  if (!_statsSessionActive) {
+    _statsSessionStart = Date.now();
+    _statsSessionActive = true;
+  }
+}
+
+// Stop tracking and save elapsed minutes to Firebase
+async function statsStopSession() {
+  if (!_statsSessionActive || !_statsSessionStart) return;
+  const elapsedMs = Date.now() - _statsSessionStart;
+  _statsSessionActive = false;
+  _statsSessionStart = null;
+  const elapsedMin = Math.round(elapsedMs / 60000);
+  if (elapsedMin < 1) return; // skip sessions under 1 min
+  if (!isLoggedIn()) return;
+  try {
+    const snap = await window._getDoc(userDoc());
+    const d = snap.exists() ? snap.data() : {};
+    const newTotal = (d.totalStudyMinutes || 0) + elapsedMin;
+    await window._setDoc(userDoc(), { totalStudyMinutes: newTotal }, { merge: true });
+  } catch(e) {}
+}
+
+// Record a word flip (word seen)
+async function statsRecordFlip() {
+  if (!isLoggedIn()) return;
+  try {
+    const snap = await window._getDoc(userDoc());
+    const d = snap.exists() ? snap.data() : {};
+    const newVal = (d.totalWordsSeen || 0) + 1;
+    await window._setDoc(userDoc(), { totalWordsSeen: newVal }, { merge: true });
+    refreshStatsBar();
+  } catch(e) {}
+}
+
+// Format minutes → "2g 15p" or "45p"
+function fmtMinutes(m) {
+  if (m < 60) return m + 'p';
+  const h = Math.floor(m / 60), min = m % 60;
+  return h + 'g ' + (min > 0 ? min + 'p' : '');
+}
+
+// Pop animation helper
+function popPill(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('pop');
+  void el.offsetWidth;
+  el.classList.add('pop');
+  setTimeout(() => el.classList.remove('pop'), 400);
+}
+
+// Load and display stats bar
+async function refreshStatsBar() {
+  if (!isLoggedIn()) { document.getElementById('statsBar').style.display = 'none'; return; }
+  try {
+    const snap = await window._getDoc(userDoc());
+    const d = snap.exists() ? snap.data() : {};
+    const mins = d.totalStudyMinutes || 0;
+    const seen = d.totalWordsSeen || 0;
+
+    // Mastered: sum across all packs
+    const userPacks = d.packs || [];
+    let mastered = 0;
+    const packSnaps = await Promise.all(userPacks.map(p => window._getDoc(packDoc(p.id)).catch(()=>null)));
+    packSnaps.forEach(s => { if (s && s.exists()) mastered += (s.data().words||[]).filter(w=>w.mastered).length; });
+
+    document.getElementById('statHoursVal').textContent = fmtMinutes(mins);
+    document.getElementById('statSeenVal').textContent = seen.toLocaleString('vi');
+    document.getElementById('statMasteredVal').textContent = mastered.toLocaleString('vi');
+    document.getElementById('statsBar').style.display = 'flex';
+  } catch(e) {}
+}
+
+// ============================================================
 //  Admin shares own pack → synced to /sharedPacks/{packId}
 //  User progress → /users/{uid}/sharedProgress/{packId}
 // ============================================================
@@ -2682,6 +3165,10 @@ function initApp() {
   showPacksScreen();
   updateAuthBar();
 }
+
+// Save study time when user leaves or hides the page
+document.addEventListener('visibilitychange', () => { if (document.hidden) statsStopSession(); });
+window.addEventListener('beforeunload', () => statsStopSession());
 
 async function handleAuthChange(user) {
   updateAuthBar();
