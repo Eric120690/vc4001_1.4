@@ -1317,21 +1317,39 @@ async function openSharedPack(pack) {
   // Ẩn tab "Nhập Từ" với shared pack
   const inputTab = document.getElementById('tabInput');
   if (inputTab) inputTab.style.display = 'none';
-  switchTab('flashcard');
+
+  // Hiện loading trước khi có data — KHÔNG switchTab ở đây
+  const fcContent = document.getElementById('fc-content');
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', i===1));
+  document.querySelectorAll('.panel').forEach((p,i) => p.classList.toggle('active', i===1));
+  if (fcContent) fcContent.innerHTML = '<div class="warn-box" style="justify-content:center">⟳ Đang tải từ vựng...</div>';
 
   const badge = document.getElementById('cloudBadge');
+  if (badge) {
+    badge.innerHTML = '⬡ <span style="color:var(--neon-yellow)">Gói Admin</span> · Đang đồng bộ...';
+    badge.style.color = 'rgba(255,230,0,0.4)';
+  }
+
+  // Load data TRƯỚC, render SAU
+  words = [];
+  const loaded = await loadData();
+
+  if (!loaded) {
+    if (fcContent) fcContent.innerHTML = '<div class="warn-box">✕ Không tải được gói từ vựng. Vui lòng thử lại.</div>';
+    if (badge) { badge.textContent = '☁ Lỗi tải'; badge.style.color = 'var(--neon-pink)'; }
+    return;
+  }
+
   if (badge) {
     badge.innerHTML = '⬡ <span style="color:var(--neon-yellow)">Gói Admin</span> · Tiến độ được lưu riêng';
     badge.style.color = 'rgba(255,230,0,0.5)';
   }
 
-  words = [];
-  const loaded = await loadData();
-  if (!loaded) {
-    showToast('error', '✕ Không tải được gói từ vựng.');
-    return;
-  }
-  buildQueue(); renderList(); updateStudyBadge();
+  // Giờ mới render — words đã có đủ dữ liệu
+  buildQueue();
+  renderFlashcard(); // render trực tiếp vào fc-content
+  renderList();
+  updateStudyBadge();
 }
 
 // Override backToPacks để restore input tab
