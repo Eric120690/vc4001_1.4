@@ -652,83 +652,68 @@
   }
   .shared-section-label::after { content:''; flex:1; height:1px; background:linear-gradient(90deg,rgba(255,230,0,0.3),transparent); }
 
-  /* ===== ADMIN SHARED PACK MANAGER ===== */
-  .spack-overlay {
+  /* ===== SHARE MODAL ===== */
+  .share-overlay {
     display:none; position:fixed; inset:0; z-index:180;
-    background:rgba(0,0,0,0.85); backdrop-filter:blur(8px);
+    background:rgba(0,0,0,0.82); backdrop-filter:blur(8px);
     align-items:center; justify-content:center; padding:20px;
   }
-  .spack-overlay.show { display:flex; }
-  .spack-panel {
+  .share-overlay.show { display:flex; }
+  .share-modal {
     background:var(--dark2); border:1px solid rgba(255,230,0,0.2);
-    border-radius:24px; padding:28px; width:100%; max-width:800px; max-height:90vh;
-    display:flex; flex-direction:column; animation:fadeUp 0.3s ease;
+    border-radius:24px; padding:28px; width:100%; max-width:460px;
+    animation:fadeUp 0.3s ease; display:flex; flex-direction:column; max-height:88vh;
   }
-  .spack-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
-  .spack-title { font-family:'Syne',sans-serif; font-size:1.15rem; font-weight:800; letter-spacing:0.06em; background:linear-gradient(90deg,var(--neon-yellow),var(--neon-pink)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-  .spack-body { flex:1; overflow-y:auto; }
-  .spack-body::-webkit-scrollbar { width:3px; }
-  .spack-body::-webkit-scrollbar-thumb { background:rgba(255,230,0,0.2); border-radius:3px; }
+  .share-modal-title {
+    font-family:'Syne',sans-serif; font-size:1rem; font-weight:800; letter-spacing:0.06em;
+    background:linear-gradient(90deg,var(--neon-yellow),var(--neon-pink));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    margin-bottom:4px;
+  }
+  .share-modal-sub { font-size:0.72rem; color:rgba(255,255,255,0.35); margin-bottom:18px; }
+  .share-radio-group { display:flex; gap:8px; margin-bottom:14px; }
+  .share-radio-btn {
+    flex:1; padding:10px 8px; border-radius:12px; border:1px solid var(--glass-border);
+    background:transparent; color:rgba(255,255,255,0.4); font-family:'Syne',sans-serif;
+    font-size:0.72rem; font-weight:700; cursor:pointer; transition:all 0.18s;
+    letter-spacing:0.04em; text-align:center;
+  }
+  .share-radio-btn.active { background:rgba(255,230,0,0.1); border-color:rgba(255,230,0,0.45); color:var(--neon-yellow); }
+  .share-radio-btn:hover:not(.active) { background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.6); }
+  .share-user-list {
+    display:none; flex-direction:column; gap:4px; max-height:220px; overflow-y:auto;
+    border:1px solid var(--glass-border); border-radius:12px; padding:8px; margin-bottom:14px; background:rgba(0,0,0,0.2);
+  }
+  .share-user-list.show { display:flex; }
+  .share-user-list::-webkit-scrollbar { width:3px; }
+  .share-user-list::-webkit-scrollbar-thumb { background:rgba(0,245,255,0.2); border-radius:3px; }
+  .share-user-row { display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:8px; cursor:pointer; transition:background 0.15s; user-select:none; }
+  .share-user-row:hover { background:rgba(255,255,255,0.04); }
+  .share-user-check { width:18px; height:18px; border-radius:5px; border:1.5px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-size:0.72rem; flex-shrink:0; transition:all 0.15s; }
+  .share-user-check.checked { background:rgba(0,245,255,0.18); border-color:var(--neon-cyan); color:var(--neon-cyan); }
+  .share-user-ava { width:28px; height:28px; border-radius:50%; object-fit:cover; border:1px solid rgba(255,255,255,0.1); flex-shrink:0; }
+  .share-user-ava-ph { width:28px; height:28px; border-radius:50%; background:linear-gradient(135deg,var(--neon-cyan),var(--neon-purple)); display:flex; align-items:center; justify-content:center; font-size:0.7rem; font-weight:800; color:#000; flex-shrink:0; }
+  .share-user-info { flex:1; min-width:0; }
+  .share-user-name { font-size:0.78rem; font-weight:700; color:#fff; font-family:'Syne',sans-serif; }
+  .share-user-email { font-size:0.63rem; color:rgba(255,255,255,0.35); }
+  .share-status-bar { padding:10px 14px; border-radius:10px; font-size:0.75rem; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+  .share-status-bar.shared-all      { background:rgba(57,255,20,0.07); border:1px solid rgba(57,255,20,0.2); color:var(--neon-green); }
+  .share-status-bar.shared-specific { background:rgba(0,245,255,0.07); border:1px solid rgba(0,245,255,0.2); color:var(--neon-cyan); }
+  .share-status-bar.not-shared      { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); color:rgba(255,255,255,0.3); }
 
-  /* Shared pack list items */
-  .spack-item { background:var(--glass); border:1px solid var(--glass-border); border-radius:14px; padding:16px 18px; margin-bottom:10px; }
-  .spack-item-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
-  .spack-item-name { font-family:'Syne',sans-serif; font-size:0.9rem; font-weight:800; color:#fff; }
-  .spack-item-desc { font-size:0.7rem; color:rgba(255,255,255,0.35); margin-top:3px; }
-  .spack-item-meta { font-size:0.68rem; color:rgba(255,255,255,0.3); margin-top:6px; display:flex; gap:12px; flex-wrap:wrap; }
-  .spack-item-meta span { color:var(--neon-cyan); }
-  .spack-visibility-badge {
-    display:inline-flex; align-items:center; gap:5px; font-size:0.62rem;
-    padding:3px 10px; border-radius:20px; font-family:'Syne',sans-serif; font-weight:700;
-    letter-spacing:0.08em; text-transform:uppercase; white-space:nowrap;
+  /* Share button on pack card */
+  .pack-action-btn.share { }
+  .pack-action-btn.share:hover { background:rgba(255,230,0,0.2); color:var(--neon-yellow); }
+  .pack-share-indicator {
+    position:absolute; bottom:10px; right:10px;
+    font-size:0.55rem; letter-spacing:0.12em; padding:2px 7px;
+    background:rgba(255,230,0,0.1); border:1px solid rgba(255,230,0,0.25);
+    border-radius:20px; color:var(--neon-yellow); font-family:'Syne',sans-serif; font-weight:700;
   }
+
+  /* vis badges — keep for shared cards */
   .vis-all      { background:rgba(57,255,20,0.1);  border:1px solid rgba(57,255,20,0.25);  color:var(--neon-green); }
   .vis-specific { background:rgba(0,245,255,0.1);  border:1px solid rgba(0,245,255,0.25);  color:var(--neon-cyan); }
-  .vis-hidden   { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.3); }
-  .spack-item-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
-  .spack-btn { padding:6px 14px; border-radius:8px; font-size:0.68rem; font-family:'Syne',sans-serif; font-weight:700; cursor:pointer; transition:all 0.15s; border:1px solid; }
-  .spack-btn-edit   { background:rgba(0,245,255,0.06); border-color:rgba(0,245,255,0.2); color:var(--neon-cyan); }
-  .spack-btn-edit:hover   { background:rgba(0,245,255,0.14); }
-  .spack-btn-words  { background:rgba(191,0,255,0.06); border-color:rgba(191,0,255,0.2); color:var(--neon-purple); }
-  .spack-btn-words:hover  { background:rgba(191,0,255,0.14); }
-  .spack-btn-vis    { background:rgba(255,230,0,0.06); border-color:rgba(255,230,0,0.2); color:var(--neon-yellow); }
-  .spack-btn-vis:hover    { background:rgba(255,230,0,0.14); }
-  .spack-btn-del    { background:rgba(255,0,110,0.06); border-color:rgba(255,0,110,0.2); color:var(--neon-pink); }
-  .spack-btn-del:hover    { background:rgba(255,0,110,0.14); }
-
-  /* Create / Edit shared pack form */
-  .spack-form { background:rgba(255,230,0,0.03); border:1px solid rgba(255,230,0,0.12); border-radius:14px; padding:18px; margin-bottom:14px; }
-  .spack-form-title { font-family:'Syne',sans-serif; font-size:0.78rem; font-weight:800; color:var(--neon-yellow); letter-spacing:0.1em; margin-bottom:14px; }
-  .spack-input { width:100%; background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:10px 14px; color:#fff; font-family:'Inter',sans-serif; font-size:0.85rem; outline:none; transition:border-color 0.2s; margin-bottom:10px; }
-  .spack-input:focus { border-color:rgba(255,230,0,0.4); }
-  .spack-input::placeholder { color:rgba(255,255,255,0.2); }
-  .spack-radio-group { display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
-  .spack-radio-btn { padding:7px 14px; border-radius:20px; border:1px solid var(--glass-border); background:transparent; color:rgba(255,255,255,0.4); font-family:'Syne',sans-serif; font-size:0.7rem; font-weight:700; cursor:pointer; transition:all 0.15s; letter-spacing:0.05em; }
-  .spack-radio-btn.active { background:rgba(255,230,0,0.12); border-color:rgba(255,230,0,0.4); color:var(--neon-yellow); }
-  .spack-user-select { display:none; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto; border:1px solid var(--glass-border); border-radius:10px; padding:8px; margin-bottom:10px; background:rgba(0,0,0,0.2); }
-  .spack-user-select.show { display:flex; }
-  .spack-user-select::-webkit-scrollbar { width:3px; }
-  .spack-user-select::-webkit-scrollbar-thumb { background:rgba(0,245,255,0.2); border-radius:3px; }
-  .spack-user-row { display:flex; align-items:center; gap:10px; padding:6px 8px; border-radius:8px; cursor:pointer; transition:background 0.15s; user-select:none; }
-  .spack-user-row:hover { background:rgba(255,255,255,0.04); }
-  .spack-user-check { width:16px; height:16px; border-radius:4px; border:1.5px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-size:0.7rem; flex-shrink:0; transition:all 0.15s; }
-  .spack-user-check.checked { background:rgba(0,245,255,0.2); border-color:rgba(0,245,255,0.6); color:var(--neon-cyan); }
-  .spack-user-label { font-size:0.75rem; color:rgba(255,255,255,0.6); }
-  .spack-user-label strong { color:#fff; font-family:'Syne',sans-serif; }
-
-  /* Words editor inside shared pack */
-  .spack-words-editor { margin-top:12px; }
-  .spack-words-add-row { display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
-  .spack-words-add-row .spack-input { flex:1; min-width:120px; margin-bottom:0; }
-  .spack-word-list { border:1px solid var(--glass-border); border-radius:10px; overflow:hidden; max-height:300px; overflow-y:auto; }
-  .spack-word-list::-webkit-scrollbar { width:3px; }
-  .spack-word-list::-webkit-scrollbar-thumb { background:rgba(191,0,255,0.2); border-radius:3px; }
-  .spack-word-row { display:flex; align-items:center; gap:8px; padding:8px 12px; border-bottom:1px solid rgba(255,255,255,0.04); font-size:0.75rem; }
-  .spack-word-row:last-child { border-bottom:none; }
-  .spack-word-en  { font-weight:700; color:#fff; font-family:'Syne',sans-serif; min-width:110px; }
-  .spack-word-vn  { color:rgba(255,255,255,0.5); flex:1; }
-  .spack-word-del { background:none; border:none; color:rgba(255,0,110,0.35); cursor:pointer; font-size:0.9rem; transition:color 0.15s; padding:2px 4px; }
-  .spack-word-del:hover { color:var(--neon-pink); }
 
   /* ===== USER PROFILE PANEL ===== */
   .profile-overlay {
@@ -902,15 +887,30 @@
 </head>
 <body>
 
-<!-- ===== SHARED PACK MANAGER (Admin only) ===== -->
-<div class="spack-overlay" id="spackOverlay">
-  <div class="spack-panel">
-    <div class="spack-header">
-      <div class="spack-title">📦 Gói Từ Vựng Chung</div>
-      <button class="admin-close" onclick="closeSpackManager()">✕ Đóng</button>
+<!-- ===== SHARE MODAL (Admin only) ===== -->
+<div class="share-overlay" id="shareOverlay" onclick="closeShareModal(event)">
+  <div class="share-modal">
+    <div class="share-modal-title" id="shareModalTitle">🔗 Chia sẻ gói từ vựng</div>
+    <div class="share-modal-sub" id="shareModalSub"></div>
+
+    <!-- Current share status -->
+    <div class="share-status-bar not-shared" id="shareStatusBar">🔒 Chưa được chia sẻ</div>
+
+    <!-- Visibility selector -->
+    <div style="font-size:0.62rem;color:rgba(255,255,255,0.3);letter-spacing:0.2em;text-transform:uppercase;margin-bottom:8px">Chia sẻ cho ai?</div>
+    <div class="share-radio-group">
+      <button class="share-radio-btn" id="shareVisAll"      onclick="setShareVis('all',this)">🌐 Tất cả users</button>
+      <button class="share-radio-btn" id="shareVisSpecific" onclick="setShareVis('specific',this)">👤 Chọn người</button>
+      <button class="share-radio-btn" id="shareVisHidden"   onclick="setShareVis('hidden',this)">🔒 Bỏ chia sẻ</button>
     </div>
-    <div class="spack-body" id="spackBody">
-      <div class="admin-loading">⟳ Đang tải...</div>
+
+    <!-- User picker (specific mode) -->
+    <div class="share-user-list" id="shareUserList"></div>
+
+    <!-- Actions -->
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <button class="btn-primary" style="flex:1;justify-content:center;padding:12px" onclick="saveShareSettings()">✓ Lưu cài đặt</button>
+      <button class="btn-cancel" onclick="closeShareModal()">✕ Hủy</button>
     </div>
   </div>
 </div>
@@ -972,10 +972,7 @@
   <div class="admin-panel">
     <div class="admin-header">
       <div class="admin-title">⬡ ADMIN PANEL</div>
-      <div style="display:flex;gap:8px">
-        <button class="admin-approve-btn" onclick="openSpackManager()" style="font-size:0.72rem;padding:7px 14px">📦 Gói Chung</button>
-        <button class="admin-close" onclick="closeAdminPanel()">✕ Đóng</button>
-      </div>
+      <button class="admin-close" onclick="closeAdminPanel()">✕ Đóng</button>
     </div>
     <div class="admin-stats-row" id="adminStatsRow">
       <div class="admin-stat"><div class="admin-stat-val" id="astatUsers">—</div><div class="admin-stat-lbl">Người dùng</div></div>
@@ -1396,11 +1393,19 @@ async function renderPacksGrid() {
     const total = ws.length;
     const mastered = ws.filter(w => w.mastered).length;
     const pct = total ? Math.round(mastered / total * 100) : 0;
+    const shareInfo = pack.shareVisibility;
+    const shareIndicator = isAdmin() && shareInfo && shareInfo !== 'hidden'
+      ? `<div class="pack-share-indicator">${shareInfo==='all'?'🌐 Đang share':'👤 Share riêng'}</div>`
+      : '';
+    const shareBtn = isAdmin()
+      ? `<button class="pack-action-btn share" onclick="openShareModal('${pack.id}',event)" title="Chia sẻ gói này">🔗</button>`
+      : '';
     const card = document.createElement('div');
     card.className = 'pack-card';
     card.innerHTML = `
       <div class="pack-actions">
         <button class="pack-action-btn edit" onclick="editPack('${pack.id}',event)">✎</button>
+        ${shareBtn}
         <button class="pack-action-btn" onclick="deletePack('${pack.id}',event)">✕</button>
       </div>
       <div class="pack-icon">${icons[i % icons.length]}</div>
@@ -1408,6 +1413,7 @@ async function renderPacksGrid() {
       <div class="pack-meta">${pack.desc ? h(pack.desc) + '<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
       <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%"></div></div>
       <div class="pack-progress-label">${pct}% hoàn thành</div>
+      ${shareIndicator}
     `;
     card.addEventListener('click', () => openPack(pack));
     grid.appendChild(card);
@@ -2139,8 +2145,11 @@ async function recordStudyActivity(wordCount) {
 }
 
 // ============================================================
-//  SHARED PACKS — Firebase path: /sharedPacks/{id}
+//  SHARED PACKS — Firebase: /sharedPacks/{packId}
+//  Admin shares own pack → synced to /sharedPacks/{packId}
+//  User progress → /users/{uid}/sharedProgress/{packId}
 // ============================================================
+
 async function loadVisibleSharedPacks() {
   try {
     const uid = getUID();
@@ -2152,7 +2161,6 @@ async function loadVisibleSharedPacks() {
       const vis = data.visibility || 'hidden';
       if (vis === 'hidden') continue;
       if (vis === 'all' || (vis === 'specific' && (data.allowedUsers||[]).includes(uid))) {
-        // Load user's progress
         let userProgress = {};
         try {
           const progSnap = await window._getDoc(window._doc(window._db,'users',uid,'sharedProgress',d.id));
@@ -2165,269 +2173,147 @@ async function loadVisibleSharedPacks() {
   } catch(e) { console.warn('loadVisibleSharedPacks error:', e); return []; }
 }
 
-// ── Shared Pack Manager (Admin only) ──
-let _spackList = [];
-let _spackEditId = null;
-let _spackEditWords = [];
-let _spackSelectedUsers = new Set();
-let _spackVisibility = 'all';
+// ── Share Modal ──
+let _sharePackId   = null;
+let _shareVis      = 'hidden';
+let _shareSelected = new Set();
+let _shareApprovedUsers = [];
 
-async function openSpackManager() {
-  document.getElementById('spackOverlay').classList.add('show');
-  await loadSpackList();
-}
-function closeSpackManager() {
-  document.getElementById('spackOverlay').classList.remove('show');
-}
+async function openShareModal(packId, e) {
+  if (e) e.stopPropagation();
+  if (!isAdmin()) return;
+  _sharePackId = packId;
 
-async function loadSpackList() {
-  const body = document.getElementById('spackBody');
-  body.innerHTML = '<div class="admin-loading">⟳ Đang tải gói từ vựng chung...</div>';
+  let existing = null;
   try {
-    const snap = await window._getDocs(window._collection(window._db, 'sharedPacks'));
-    _spackList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderSpackList();
-  } catch(e) {
-    body.innerHTML = `<div class="admin-loading" style="color:var(--neon-pink)">✕ Lỗi: ${e.message}</div>`;
+    const snap = await window._getDoc(window._doc(window._db,'sharedPacks',packId));
+    if (snap.exists()) existing = snap.data();
+  } catch(e) {}
+
+  _shareVis = existing?.visibility || 'hidden';
+  _shareSelected = new Set(existing?.allowedUsers || []);
+
+  const pack = packs.find(p=>p.id===packId);
+  document.getElementById('shareModalTitle').textContent = `🔗 Chia sẻ: ${pack?.name || ''}`;
+  const wordCount = existing?.words?.length || 0;
+  document.getElementById('shareModalSub').textContent = wordCount
+    ? `${wordCount} từ đang được chia sẻ · Lưu lại để đồng bộ từ mới nhất`
+    : 'Chưa được chia sẻ · Nhấn Lưu để đồng bộ từ vựng';
+
+  const statusBar = document.getElementById('shareStatusBar');
+  if (_shareVis === 'all') {
+    statusBar.className = 'share-status-bar shared-all';
+    statusBar.textContent = '🌐 Đang chia sẻ với tất cả users';
+  } else if (_shareVis === 'specific') {
+    statusBar.className = 'share-status-bar shared-specific';
+    statusBar.textContent = `👤 Đang chia sẻ với ${_shareSelected.size} người dùng`;
+  } else {
+    statusBar.className = 'share-status-bar not-shared';
+    statusBar.textContent = '🔒 Chưa được chia sẻ';
   }
-}
 
-function renderSpackList() {
-  const body = document.getElementById('spackBody');
-  const visLabel = { all:'🌐 Tất cả users', specific:'👤 Người dùng cụ thể', hidden:'🔒 Ẩn' };
-  const visClass = { all:'vis-all', specific:'vis-specific', hidden:'vis-hidden' };
+  document.getElementById('shareVisAll').classList.toggle('active', _shareVis==='all');
+  document.getElementById('shareVisSpecific').classList.toggle('active', _shareVis==='specific');
+  document.getElementById('shareVisHidden').classList.toggle('active', _shareVis==='hidden');
 
-  body.innerHTML = `
-    <button class="btn-primary" style="margin-bottom:16px;width:100%;justify-content:center" onclick="openSpackForm()">⊕ Tạo gói từ vựng mới</button>
-    <div id="spackFormArea"></div>
-    ${_spackList.length === 0 ? '<div style="color:rgba(255,255,255,0.25);text-align:center;padding:24px;font-size:0.8rem">Chưa có gói từ vựng chung nào.</div>' : ''}
-    ${_spackList.map(p => {
-      const total = (p.words||[]).length;
-      const vis = p.visibility || 'hidden';
-      return `
-        <div class="spack-item" id="spack-item-${p.id}">
-          <div class="spack-item-header">
-            <div>
-              <div class="spack-item-name">${p.icon||'🌟'} ${h(p.name)}</div>
-              ${p.desc ? `<div class="spack-item-desc">${h(p.desc)}</div>` : ''}
-              <div class="spack-item-meta">
-                <div><span>${total}</span> từ</div>
-                ${vis==='specific' ? `<div>Dùng được: <span>${(p.allowedUsers||[]).length} users</span></div>` : ''}
-              </div>
-            </div>
-            <span class="spack-visibility-badge ${visClass[vis]}">${visLabel[vis]||vis}</span>
-          </div>
-          <div class="spack-item-actions">
-            <button class="spack-btn spack-btn-edit"  onclick="openSpackForm('${p.id}')">✎ Chỉnh sửa</button>
-            <button class="spack-btn spack-btn-words" onclick="openSpackWordsEditor('${p.id}')">📝 Từ vựng (${total})</button>
-            <button class="spack-btn spack-btn-vis"   onclick="openVisibilityEditor('${p.id}')">👁 Hiển thị</button>
-            <button class="spack-btn spack-btn-del"   onclick="deleteSpack('${p.id}','${h(p.name)}')">✕ Xóa</button>
-          </div>
-          <div id="spack-sub-${p.id}" style="margin-top:10px"></div>
-        </div>`;
-    }).join('')}
-  `;
-}
-
-// ── Create / Edit form ──
-function openSpackForm(editId) {
-  _spackEditId = editId || null;
-  const existing = editId ? _spackList.find(p=>p.id===editId) : null;
-  const area = document.getElementById('spackFormArea');
-  area.innerHTML = `
-    <div class="spack-form">
-      <div class="spack-form-title">${editId ? '✎ Chỉnh sửa gói' : '⊕ Tạo gói mới'}</div>
-      <input class="spack-input" id="spackName" placeholder="Tên gói (VD: IELTS Vocabulary)" value="${existing?h(existing.name):''}">
-      <input class="spack-input" id="spackDesc" placeholder="Mô tả ngắn (tùy chọn)" value="${existing?h(existing.desc||''):''}">
-      <input class="spack-input" id="spackIcon" placeholder="Icon (emoji, VD: 🌟 📚 🎯)" value="${existing?h(existing.icon||'🌟'):'🌟'}">
-      <div style="display:flex;gap:8px;margin-top:4px">
-        <button class="btn-primary" style="flex:1;justify-content:center;padding:10px" onclick="saveSpackForm()">✓ Lưu</button>
-        <button class="btn-cancel" onclick="document.getElementById('spackFormArea').innerHTML=''">✕ Hủy</button>
-      </div>
-    </div>`;
-  document.getElementById('spackName').focus();
-}
-
-async function saveSpackForm() {
-  const name = document.getElementById('spackName').value.trim();
-  if (!name) { alert('Vui lòng nhập tên gói!'); return; }
-  const desc = document.getElementById('spackDesc').value.trim();
-  const icon = document.getElementById('spackIcon').value.trim() || '🌟';
+  _shareApprovedUsers = [];
   try {
-    if (_spackEditId) {
-      await window._setDoc(window._doc(window._db,'sharedPacks',_spackEditId), { name, desc, icon, updatedAt:Date.now() }, { merge:true });
-    } else {
-      const newId = 'sp_' + Date.now();
-      await window._setDoc(window._doc(window._db,'sharedPacks',newId), {
-        name, desc, icon, words:[], visibility:'hidden', allowedUsers:[],
-        createdBy: getUID(), createdAt: Date.now(), updatedAt: Date.now()
-      });
-    }
-    document.getElementById('spackFormArea').innerHTML = '';
-    await loadSpackList();
-  } catch(e) { alert('Lỗi lưu: ' + e.message); }
-}
-
-// ── Words editor ──
-function openSpackWordsEditor(packId) {
-  const pack = _spackList.find(p=>p.id===packId);
-  if (!pack) return;
-  _spackEditWords = [...(pack.words||[])];
-  const sub = document.getElementById('spack-sub-'+packId);
-  renderSpackWordsEditor(sub, packId);
-}
-
-function renderSpackWordsEditor(container, packId) {
-  container.innerHTML = `
-    <div class="spack-words-editor">
-      <div style="font-size:0.62rem;color:rgba(255,255,255,0.3);letter-spacing:0.2em;text-transform:uppercase;margin-bottom:8px">Thêm từ vựng</div>
-      <div class="spack-words-add-row">
-        <input class="spack-input" id="swWord_${packId}" placeholder="Từ tiếng Anh" onkeydown="if(event.key==='Enter')addSpackWord('${packId}')">
-        <input class="spack-input" id="swMeaning_${packId}" placeholder="Nghĩa tiếng Việt" onkeydown="if(event.key==='Enter')addSpackWord('${packId}')">
-        <input class="spack-input" id="swPhonetic_${packId}" placeholder="/phiên âm/" style="max-width:130px" onkeydown="if(event.key==='Enter')addSpackWord('${packId}')">
-        <button class="spack-btn spack-btn-edit" onclick="addSpackWord('${packId}')">⊕ Thêm</button>
-      </div>
-      <div style="font-size:0.62rem;color:rgba(255,255,255,0.3);letter-spacing:0.2em;text-transform:uppercase;margin-bottom:6px">Danh sách (${_spackEditWords.length} từ)</div>
-      <div class="spack-word-list" id="swList_${packId}">
-        ${renderSpackWordRows(packId)}
-      </div>
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="btn-primary" style="flex:1;justify-content:center;padding:10px" onclick="saveSpackWords('${packId}')">☁ Lưu lên Firebase</button>
-        <button class="btn-cancel" onclick="document.getElementById('spack-sub-${packId}').innerHTML=''">✕ Đóng</button>
-      </div>
-    </div>`;
-}
-
-function renderSpackWordRows(packId) {
-  if (!_spackEditWords.length) return '<div style="padding:16px;text-align:center;color:rgba(255,255,255,0.2);font-size:0.78rem">Chưa có từ nào</div>';
-  return _spackEditWords.map((w,i) => `
-    <div class="spack-word-row">
-      <div class="spack-word-en">${h(w.word)}</div>
-      <div class="spack-word-vn">${h(w.meaning)}${w.phonetics?` <span style="color:var(--neon-cyan);font-size:0.68rem">/${h(w.phonetics)}/</span>`:''}</div>
-      <button class="spack-word-del" onclick="removeSpackWord(${i},'${packId}')">✕</button>
-    </div>`).join('');
-}
-
-function addSpackWord(packId) {
-  const word = document.getElementById(`swWord_${packId}`).value.trim();
-  const meaning = document.getElementById(`swMeaning_${packId}`).value.trim();
-  const phonetics = document.getElementById(`swPhonetic_${packId}`).value.trim();
-  if (!word || !meaning) { alert('Vui lòng nhập từ và nghĩa!'); return; }
-  if (_spackEditWords.find(w=>w.word.toLowerCase()===word.toLowerCase())) { alert('Từ đã tồn tại!'); return; }
-  _spackEditWords.push({ word, meaning, phonetics, type:'', level:'', example:'', description:'', mastered:false });
-  document.getElementById(`swWord_${packId}`).value = '';
-  document.getElementById(`swMeaning_${packId}`).value = '';
-  document.getElementById(`swPhonetic_${packId}`).value = '';
-  document.getElementById(`swList_${packId}`).innerHTML = renderSpackWordRows(packId);
-  document.getElementById(`swWord_${packId}`).focus();
-}
-
-function removeSpackWord(idx, packId) {
-  _spackEditWords.splice(idx, 1);
-  document.getElementById(`swList_${packId}`).innerHTML = renderSpackWordRows(packId);
-  // update count label
-  const countEl = document.querySelector(`#spack-sub-${packId} .spack-word-list`).previousElementSibling;
-  if (countEl) countEl.textContent = `Danh sách (${_spackEditWords.length} từ)`.toUpperCase();
-}
-
-async function saveSpackWords(packId) {
-  try {
-    await window._setDoc(window._doc(window._db,'sharedPacks',packId), { words: _spackEditWords, updatedAt:Date.now() }, { merge:true });
-    const p = _spackList.find(x=>x.id===packId);
-    if (p) p.words = [..._spackEditWords];
-    document.getElementById('spack-sub-'+packId).innerHTML = '';
-    renderSpackList();
-    // Show success
-    const notif = document.createElement('div');
-    notif.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0d0d1f;border:1px solid rgba(57,255,20,0.3);border-radius:12px;padding:10px 22px;color:var(--neon-green);font-size:0.8rem;font-family:Syne,sans-serif;z-index:999;animation:fadeUp 0.3s ease';
-    notif.textContent = `✓ Đã lưu ${_spackEditWords.length} từ lên Firebase`;
-    document.body.appendChild(notif);
-    setTimeout(()=>notif.remove(), 2500);
-  } catch(e) { alert('Lỗi lưu: ' + e.message); }
-}
-
-// ── Visibility editor ──
-async function openVisibilityEditor(packId) {
-  const pack = _spackList.find(p=>p.id===packId);
-  if (!pack) return;
-  _spackVisibility = pack.visibility || 'hidden';
-  _spackSelectedUsers = new Set(pack.allowedUsers || []);
-
-  // Load approved users for picker
-  let approvedUsers = [];
-  try {
-    const snap = await window._getDocs(window._collection(window._db,'users'));
-    approvedUsers = snap.docs
+    const usersSnap = await window._getDocs(window._collection(window._db,'users'));
+    _shareApprovedUsers = usersSnap.docs
       .map(d=>({uid:d.id,...d.data()}))
       .filter(u=>u.email && u.email!==window.ADMIN_EMAIL && u.accessStatus==='approved');
   } catch(e) {}
 
-  const sub = document.getElementById('spack-sub-'+packId);
-  sub.innerHTML = `
-    <div class="spack-form">
-      <div class="spack-form-title">👁 Cài đặt hiển thị</div>
-      <div style="font-size:0.7rem;color:rgba(255,255,255,0.35);margin-bottom:10px;letter-spacing:0.1em;text-transform:uppercase">Hiển thị cho ai?</div>
-      <div class="spack-radio-group">
-        <button class="spack-radio-btn ${_spackVisibility==='all'?'active':''}"      onclick="setSpackVis('${packId}','all',this)">🌐 Tất cả users</button>
-        <button class="spack-radio-btn ${_spackVisibility==='specific'?'active':''}" onclick="setSpackVis('${packId}','specific',this)">👤 Chọn từng người</button>
-        <button class="spack-radio-btn ${_spackVisibility==='hidden'?'active':''}"   onclick="setSpackVis('${packId}','hidden',this)">🔒 Ẩn</button>
-      </div>
-      <div class="spack-user-select ${_spackVisibility==='specific'?'show':''}" id="spackUserList_${packId}">
-        ${approvedUsers.length ? approvedUsers.map(u=>`
-          <div class="spack-user-row" onclick="toggleSpackUser('${u.uid}','${packId}')">
-            <div class="spack-user-check ${_spackSelectedUsers.has(u.uid)?'checked':''}" id="spack-uc-${packId}-${u.uid}">${_spackSelectedUsers.has(u.uid)?'✓':''}</div>
-            <div class="spack-user-label"><strong>${h(u.displayName||u.email.split('@')[0])}</strong> · ${h(u.email)}</div>
-          </div>`).join('')
-        : '<div style="color:rgba(255,255,255,0.25);font-size:0.75rem;padding:8px">Chưa có user nào được duyệt.</div>'}
-      </div>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button class="btn-primary" style="flex:1;justify-content:center;padding:10px" onclick="saveVisibility('${packId}')">✓ Lưu cài đặt</button>
-        <button class="btn-cancel" onclick="document.getElementById('spack-sub-${packId}').innerHTML=''">✕ Hủy</button>
-      </div>
-    </div>`;
+  renderShareUserList();
+  document.getElementById('shareOverlay').classList.add('show');
 }
 
-function setSpackVis(packId, vis, btn) {
-  _spackVisibility = vis;
-  document.querySelectorAll(`#spack-sub-${packId} .spack-radio-btn`).forEach(b=>b.classList.remove('active'));
+function renderShareUserList() {
+  const listEl = document.getElementById('shareUserList');
+  listEl.classList.toggle('show', _shareVis==='specific');
+  if (_shareVis !== 'specific') return;
+  if (!_shareApprovedUsers.length) {
+    listEl.innerHTML = '<div style="color:rgba(255,255,255,0.25);font-size:0.75rem;padding:10px;text-align:center">Chưa có user nào được duyệt.</div>';
+    return;
+  }
+  listEl.innerHTML = _shareApprovedUsers.map(u => {
+    const checked = _shareSelected.has(u.uid);
+    const initials = (u.displayName||u.email).charAt(0).toUpperCase();
+    const avatarHTML = u.photoURL
+      ? `<img src="${u.photoURL}" class="share-user-ava" referrerpolicy="no-referrer">`
+      : `<div class="share-user-ava-ph">${initials}</div>`;
+    return `
+      <div class="share-user-row" onclick="toggleShareUser('${u.uid}')">
+        <div class="share-user-check ${checked?'checked':''}" id="suc-${u.uid}">${checked?'\u2713':''}</div>
+        ${avatarHTML}
+        <div class="share-user-info">
+          <div class="share-user-name">${u.displayName||u.email.split('@')[0]}</div>
+          <div class="share-user-email">${u.email}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function toggleShareUser(uid) {
+  if (_shareSelected.has(uid)) _shareSelected.delete(uid);
+  else _shareSelected.add(uid);
+  const el = document.getElementById('suc-'+uid);
+  if (el) { el.classList.toggle('checked', _shareSelected.has(uid)); el.textContent = _shareSelected.has(uid)?'\u2713':''; }
+}
+
+function setShareVis(vis, btn) {
+  _shareVis = vis;
+  document.querySelectorAll('.share-radio-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  const listEl = document.getElementById(`spackUserList_${packId}`);
-  if (listEl) listEl.classList.toggle('show', vis==='specific');
+  renderShareUserList();
 }
 
-function toggleSpackUser(uid, packId) {
-  if (_spackSelectedUsers.has(uid)) _spackSelectedUsers.delete(uid);
-  else _spackSelectedUsers.add(uid);
-  const check = document.getElementById(`spack-uc-${packId}-${uid}`);
-  if (check) { check.classList.toggle('checked', _spackSelectedUsers.has(uid)); check.textContent = _spackSelectedUsers.has(uid)?'✓':''; }
-}
-
-async function saveVisibility(packId) {
+async function saveShareSettings() {
+  if (!_sharePackId) return;
   try {
-    await window._setDoc(window._doc(window._db,'sharedPacks',packId), {
-      visibility: _spackVisibility,
-      allowedUsers: [..._spackSelectedUsers],
-      updatedAt: Date.now()
-    }, { merge:true });
-    const p = _spackList.find(x=>x.id===packId);
-    if (p) { p.visibility=_spackVisibility; p.allowedUsers=[..._spackSelectedUsers]; }
-    document.getElementById('spack-sub-'+packId).innerHTML='';
-    renderSpackList();
+    const pack = packs.find(p=>p.id===_sharePackId);
+    if (!pack) return;
+
+    if (_shareVis === 'hidden') {
+      await window._deleteDoc(window._doc(window._db,'sharedPacks',_sharePackId)).catch(()=>{});
+      pack.shareVisibility = null;
+    } else {
+      // Lấy từ vựng mới nhất từ pack của admin
+      const packSnap = await window._getDoc(packDoc(_sharePackId));
+      const latestWords = packSnap.exists() ? (packSnap.data().words||[]) : [];
+      await window._setDoc(window._doc(window._db,'sharedPacks',_sharePackId), {
+        id: _sharePackId,
+        name: pack.name,
+        desc: pack.desc || '',
+        icon: pack.icon || '\uD83C\uDF1F',
+        words: latestWords.map(w=>({...w, mastered:false})),
+        visibility: _shareVis,
+        allowedUsers: [..._shareSelected],
+        sharedBy: getUID(),
+        updatedAt: Date.now()
+      });
+      pack.shareVisibility = _shareVis;
+    }
+
+    await window._setDoc(userDoc(), { packs }, { merge: true });
+    document.getElementById('shareOverlay').classList.remove('show');
+    renderPacksGrid();
+
+    const msg = _shareVis==='hidden' ? '\uD83D\uDD12 Đã bỏ chia sẻ'
+      : _shareVis==='all' ? '\uD83C\uDF10 Đã chia sẻ với tất cả users'
+      : `\uD83D\uDC64 Đã chia sẻ với ${_shareSelected.size} người`;
     const notif = document.createElement('div');
-    notif.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0d0d1f;border:1px solid rgba(57,255,20,0.3);border-radius:12px;padding:10px 22px;color:var(--neon-green);font-size:0.8rem;font-family:Syne,sans-serif;z-index:999;animation:fadeUp 0.3s ease';
-    notif.textContent='✓ Đã cập nhật hiển thị';
+    notif.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0d0d1f;border:1px solid rgba(57,255,20,0.3);border-radius:12px;padding:10px 22px;color:var(--neon-green);font-size:0.8rem;font-family:Syne,sans-serif;z-index:999;animation:fadeUp 0.3s ease';
+    notif.textContent = msg;
     document.body.appendChild(notif);
-    setTimeout(()=>notif.remove(),2200);
-  } catch(e) { alert('Lỗi: '+e.message); }
+    setTimeout(()=>notif.remove(), 2500);
+  } catch(e) { alert('Lỗi lưu: '+e.message); }
 }
 
-async function deleteSpack(id, name) {
-  if (!confirm(`Xóa gói "${name}"?\nTất cả tiến độ học của users sẽ bị mất.`)) return;
-  try {
-    await window._deleteDoc(window._doc(window._db,'sharedPacks',id));
-    _spackList = _spackList.filter(p=>p.id!==id);
-    renderSpackList();
-  } catch(e) { alert('Lỗi xóa: '+e.message); }
+function closeShareModal(e) {
+  if (!e || e.target===document.getElementById('shareOverlay')) {
+    document.getElementById('shareOverlay').classList.remove('show');
+  }
 }
 
 // ============================================================
