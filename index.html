@@ -1648,37 +1648,6 @@ async function renderPacksGrid() {
     grid.appendChild(card);
   });
 
-  // ── User's own packs ──
-  packs.forEach((pack, i) => {
-    const ws = counts[pack.id] || [];
-    const total = ws.length;
-    const mastered = ws.filter(w => w.mastered).length;
-    const pct = total ? Math.round(mastered / total * 100) : 0;
-    const shareInfo = pack.shareVisibility;
-    const shareIndicator = isAdmin() && shareInfo && shareInfo !== 'hidden'
-      ? `<div class="pack-share-indicator">${shareInfo==='all'?'🌐 Đang share':'👤 Share riêng'}</div>`
-      : '';
-    const shareBtn = isAdmin()
-      ? `<button class="pack-action-btn share" onclick="openShareModal('${pack.id}',event)" title="Chia sẻ gói này">🔗</button>`
-      : '';
-    const card = document.createElement('div');
-    card.className = 'pack-card';
-    card.innerHTML = `
-      <div class="pack-actions">
-        <button class="pack-action-btn edit" onclick="editPack('${pack.id}',event)">✎</button>
-        ${shareBtn}
-        <button class="pack-action-btn" onclick="deletePack('${pack.id}',event)">✕</button>
-      </div>
-      <div class="pack-icon">${icons[i % icons.length]}</div>
-      <div class="pack-name">${h(pack.name)}</div>
-      <div class="pack-meta">${pack.desc ? h(pack.desc) + '<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
-      <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%"></div></div>
-      <div class="pack-progress-label">${pct}% hoàn thành</div>
-      ${shareIndicator}
-    `;
-    card.addEventListener('click', () => openPack(pack));
-    grid.appendChild(card);
-  });
 
 }
 
@@ -2740,7 +2709,8 @@ async function loadVisibleSharedPacks() {
       if (!data.words?.length) continue;
       const vis = data.visibility || 'hidden';
       if (vis === 'hidden') continue;
-      if (vis === 'all' || (vis === 'specific' && (data.allowedUsers||[]).includes(uid))) {
+      const isAdmin = window._currentUser?.email === window.ADMIN_EMAIL;
+      if (!isAdmin && (vis === 'all' || (vis === 'specific' && (data.allowedUsers||[]).includes(uid)))) {
         let userProgress = {};
         try {
           const progSnap = await window._getDoc(window._doc(window._db,'users',uid,'sharedProgress',d.id));
