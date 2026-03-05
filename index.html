@@ -60,10 +60,8 @@
 <!-- ===== INDEXEDDB OFFLINE CACHE ===== -->
 <script>
 const IDB = (() => {
-  const DB_NAME = 'lexon_cache_v1';
-  const STORE   = 'packs';
+  const DB_NAME = 'lexon_cache_v1', STORE = 'packs';
   let _db = null;
-
   function open() {
     if (_db) return Promise.resolve(_db);
     return new Promise((res, rej) => {
@@ -89,14 +87,6 @@ const IDB = (() => {
       r.onerror   = e  => rej(e.target.error);
     });
   }
-  async function remove(id) {
-    const db = await open();
-    return new Promise((res, rej) => {
-      const r = db.transaction(STORE,'readwrite').objectStore(STORE).delete(id);
-      r.onsuccess = () => res(true);
-      r.onerror   = e  => rej(e.target.error);
-    });
-  }
   async function getAllKeys() {
     const db = await open();
     return new Promise((res, rej) => {
@@ -105,9 +95,10 @@ const IDB = (() => {
       r.onerror   = e => rej(e.target.error);
     });
   }
-  return { get, set, remove, getAllKeys };
+  return { get, set, getAllKeys };
 })();
 </script>
+
 <style>
   :root {
     --neon-cyan: #00f5ff;
@@ -803,61 +794,31 @@ const IDB = (() => {
 
   /* ===== INITIAL LOADING OVERLAY ===== */
   .init-loading-overlay {
-    display:none; position:fixed; inset:0; z-index:250;
+    display:none; position:fixed; inset:0; z-index:210;
     background:var(--dark); align-items:center; justify-content:center;
-    pointer-events:none;
   }
-  .init-loading-overlay.show { display:flex; pointer-events:all; }
-  .init-loading-box {
-    text-align:center; width:100%; max-width:380px; padding:0 24px;
-    animation:fadeUp 0.4s ease;
-  }
+  .init-loading-overlay.show { display:flex; }
+  .init-loading-box { text-align:center; width:100%; max-width:360px; padding:0 28px; animation:fadeUp 0.4s ease; }
   .init-loading-logo {
-    font-family:'Syne',sans-serif; font-size:2.2rem; font-weight:900;
-    letter-spacing:0.3em; margin-bottom:32px;
+    font-family:'Syne',sans-serif; font-size:2rem; font-weight:900; letter-spacing:0.3em;
     background:linear-gradient(135deg,var(--neon-cyan),var(--neon-purple));
     -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    margin-bottom:28px;
   }
-  .init-loading-title {
-    font-family:'Syne',sans-serif; font-size:1rem; font-weight:700;
-    color:#fff; margin-bottom:6px; letter-spacing:0.04em;
-  }
-  .init-loading-sub {
-    font-size:0.75rem; color:rgba(255,255,255,0.35); margin-bottom:24px;
-  }
-  .init-progress-track {
-    height:4px; background:rgba(255,255,255,0.08); border-radius:4px;
-    overflow:hidden; margin-bottom:8px;
-  }
-  .init-progress-fill {
-    height:100%; width:0%; border-radius:4px;
-    background:linear-gradient(90deg,var(--neon-cyan),var(--neon-purple));
-    transition:width 0.35s ease;
-  }
-  .init-progress-label {
-    font-size:0.65rem; color:rgba(255,255,255,0.3);
-    font-family:'Space Mono',monospace; margin-bottom:20px;
-  }
-  .init-pack-list {
-    display:flex; flex-direction:column; gap:6px;
-    max-height:220px; overflow:hidden;
-    mask-image:linear-gradient(to bottom,transparent,black 20%,black 80%,transparent);
-  }
-  .init-pack-row {
-    display:flex; align-items:center; gap:10px; padding:7px 12px;
-    background:var(--glass); border:1px solid var(--glass-border);
-    border-radius:10px; font-size:0.72rem; transition:all 0.3s;
-    animation:fadeUp 0.3s ease;
-  }
-  .init-pack-row.loading { border-color:rgba(0,245,255,0.2); }
+  .init-loading-title { font-family:'Syne',sans-serif; font-size:0.95rem; font-weight:700; color:#fff; margin-bottom:5px; }
+  .init-loading-sub   { font-size:0.72rem; color:rgba(255,255,255,0.3); margin-bottom:20px; }
+  .init-progress-track { height:3px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden; margin-bottom:6px; }
+  .init-progress-fill  { height:100%; width:0%; background:linear-gradient(90deg,var(--neon-cyan),var(--neon-purple)); border-radius:3px; transition:width 0.3s ease; }
+  .init-progress-label { font-size:0.62rem; color:rgba(255,255,255,0.25); font-family:'Space Mono',monospace; margin-bottom:18px; }
+  .init-pack-list { display:flex; flex-direction:column; gap:5px; max-height:200px; overflow:hidden; mask-image:linear-gradient(to bottom,transparent,black 15%,black 85%,transparent); }
+  .init-pack-row { display:flex; align-items:center; gap:9px; padding:6px 12px; background:var(--glass); border:1px solid var(--glass-border); border-radius:9px; font-size:0.7rem; animation:fadeUp 0.25s ease; }
+  .init-pack-row.loading { border-color:rgba(0,245,255,0.15); }
   .init-pack-row.done    { border-color:rgba(57,255,20,0.2); background:rgba(57,255,20,0.04); }
-  .init-pack-row.cached  { border-color:rgba(255,230,0,0.15); background:rgba(255,230,0,0.03); }
-  .init-pack-icon { font-size:1rem; flex-shrink:0; }
-  .init-pack-name { flex:1; text-align:left; color:rgba(255,255,255,0.7); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .init-pack-status { font-size:0.65rem; flex-shrink:0; }
+  .init-pack-icon { font-size:0.9rem; flex-shrink:0; }
+  .init-pack-name { flex:1; text-align:left; color:rgba(255,255,255,0.6); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .init-pack-status { font-size:0.62rem; flex-shrink:0; }
   .init-pack-status.loading { color:var(--neon-cyan); }
   .init-pack-status.done    { color:var(--neon-green); }
-  .init-pack-status.cached  { color:var(--neon-yellow); }
 
   /* ===== ACCESS DENIED ===== */
   .access-denied-overlay {
@@ -1188,7 +1149,7 @@ const IDB = (() => {
 </div>
 
 <!-- ===== LOGIN OVERLAY ===== -->
-<div class="login-overlay show" id="loginOverlay">
+<div class="login-overlay" id="loginOverlay">
   <div class="login-box">
     <div class="login-logo">LEXON</div>
     <div class="login-sub">Vocabulary Training System</div>
@@ -1211,8 +1172,8 @@ const IDB = (() => {
 <div class="init-loading-overlay" id="initLoadingOverlay">
   <div class="init-loading-box">
     <div class="init-loading-logo">LEXON</div>
-    <div class="init-loading-title" id="initLoadingTitle">Đang tải dữ liệu...</div>
-    <div class="init-loading-sub" id="initLoadingSub">Chuẩn bị bộ từ vựng của bạn</div>
+    <div class="init-loading-title" id="initLoadingTitle">Đang tải bộ từ vựng...</div>
+    <div class="init-loading-sub" id="initLoadingSub">Lần đầu mở app — đang tải về máy</div>
     <div class="init-progress-track">
       <div class="init-progress-fill" id="initProgressFill"></div>
     </div>
@@ -1584,9 +1545,11 @@ async function saveData() {
     await window._setDoc(packDoc(currentPack.id),
       { words, name: currentPack.name, desc: currentPack.desc || '', updatedAt: Date.now() },
       { merge: true });
-    // Cập nhật IDB đồng thời
-    IDB.set(currentPack.id, { words }).catch(()=>{});
-    _updatePackMeta(currentPack.id, words);
+    // Cập nhật IDB đồng thời (không await)
+    IDB.set(currentPack.id, { words }).catch(() => {});
+    // Cập nhật metadata cache
+    const p = packs.find(x => x.id === currentPack.id);
+    if (p) { p._wordCount = words.length; p._masteredCount = words.filter(w=>w.mastered).length; }
     const badge = document.getElementById('cloudBadge');
     if (badge) { badge.textContent = '☁ Đã lưu'; badge.style.color = 'var(--neon-green)'; }
   } catch(e) {
@@ -1605,47 +1568,33 @@ async function loadData() {
       const packSnap = await window._getDoc(window._doc(window._db, 'sharedPacks', currentPack.id));
       if (!packSnap.exists()) return false;
       const packWords = packSnap.data().words || [];
+      // Load user progress
       const progSnap = await window._getDoc(window._doc(window._db, 'users', getUID(), 'sharedProgress', currentPack.id)).catch(()=>null);
       const prog = progSnap && progSnap.exists() ? (progSnap.data().progress || {}) : {};
       words = packWords.map(w => ({ ...w, mastered: !!prog[w.word] }));
       return true;
     } catch(e) { console.warn('loadSharedData error:', e.message); return false; }
   }
-
-  // 1. Thử đọc từ IndexedDB trước — không tốn Firebase read
+  // Thử đọc từ IndexedDB trước — không tốn Firebase read
   try {
     const cached = await IDB.get(currentPack.id);
     if (cached && cached.words?.length) {
       words = cached.words;
-      _updatePackMeta(currentPack.id, words);
       const badge = document.getElementById('cloudBadge');
       if (badge) { badge.innerHTML = '📦 <span style="color:var(--neon-green)">Local</span>'; badge.style.color='rgba(57,255,20,0.5)'; }
       return true;
     }
   } catch(e) { console.warn('IDB read error:', e); }
-
-  // 2. Fallback: đọc từ Firebase
+  // Fallback: đọc từ Firebase
   try {
     const snap = await window._getDoc(packDoc(currentPack.id));
     if (snap.exists() && snap.data().words?.length) {
       words = snap.data().words;
-      // Lưu vào IDB cho lần sau
-      IDB.set(currentPack.id, { words }).catch(()=>{});
-      _updatePackMeta(currentPack.id, words);
+      IDB.set(currentPack.id, { words }).catch(() => {}); // lưu cho lần sau
       return true;
     }
   } catch(e) { console.warn('loadData error:', e.message); }
   return false;
-}
-
-// Cập nhật metadata cache trong packs[]
-function _updatePackMeta(packId, ws) {
-  const p = packs.find(x => x.id === packId);
-  if (p) {
-    p._wordCount     = ws.length;
-    p._masteredCount = ws.filter(w => w.mastered).length;
-    p._metaAt        = Date.now();
-  }
 }
 
 async function openSharedPack(pack) {
@@ -1708,12 +1657,8 @@ async function showPacksScreen() {
   document.getElementById('screen-packs').classList.add('active');
   document.getElementById('screen-study').classList.remove('active');
   currentPack = null; words = [];
-  // Chỉ load từ Firebase nếu packs chưa có trong bộ nhớ
-  if (!packs || !packs.length) {
-    packs = await loadPacks();
-  }
+  if (!packs || !packs.length) packs = await loadPacks();
   refreshStatsBar();
-  // Show main nav for logged-in users, reset to packs tab
   if (isLoggedIn()) {
     document.getElementById('mainNav').classList.add('visible');
     switchMainTab('packs');
@@ -1727,7 +1672,7 @@ async function renderPacksGrid() {
   grid.innerHTML = '';
   const icons = ['📘','📗','📙','📕','📒','📓','📔','📑'];
 
-  // Nút tạo gói mới
+  // ── Nút tạo gói mới ──
   const addCard = document.createElement('div');
   addCard.className = 'pack-add-card';
   addCard.innerHTML = '<div class="pack-add-icon">⊕</div><div class="pack-add-label">TẠO GÓI MỚI</div>';
@@ -1767,57 +1712,28 @@ async function renderPacksGrid() {
   loadVisibleSharedPacks().then(allSharedPacks => {
     const ownIds = new Set(packs.map(p => p.id));
     const sharedPacks = allSharedPacks.filter(p => !ownIds.has(p.id));
-    document.querySelectorAll('.shared-section-label,.shared-pack-card').forEach(el=>el.remove());
     if (!sharedPacks.length) return;
-    const label = document.createElement('div');
-    label.className = 'shared-section-label';
-    label.style.cssText = 'grid-column:1/-1';
-    label.innerHTML = '⬡ Gói từ vựng từ Admin';
-    grid.appendChild(label);
-    sharedPacks.forEach(pack => {
-      const total = (pack.words||[]).length;
+    sharedPacks.forEach((pack, i) => {
+      const total = (pack.words || []).length;
       const prog = pack._userProgress || {};
-      const mastered = (pack.words||[]).filter(w=>prog[w.word]).length;
-      const pct = total ? Math.round(mastered/total*100) : 0;
+      const mastered = (pack.words||[]).filter(w => prog[w.word]).length;
+      const pct = total ? Math.round(mastered / total * 100) : 0;
       const card = document.createElement('div');
-      card.className = 'shared-pack-card';
+      card.className = 'pack-card';
       card.innerHTML = `
-        <div class="shared-pack-badge">⬡ Admin · ${pack.visibility==='all'?'🌐 Tất cả':'👤 Riêng bạn'}</div>
-        <div class="pack-icon">${pack.icon||'🌟'}</div>
+        <div class="pack-icon">${icons[i % icons.length]}</div>
         <div class="pack-name">${h(pack.name)}</div>
-        <div class="pack-meta">${pack.desc?h(pack.desc)+'<br>':''}${total} từ · ${mastered} đã thuộc</div>
-        <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%;background:linear-gradient(90deg,var(--neon-yellow),var(--neon-pink))"></div></div>
-        <div class="pack-progress-label" style="color:rgba(255,230,0,0.5)">${pct}% hoàn thành</div>
+        <div class="pack-meta">${pack.desc ? h(pack.desc)+'<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
+        <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%"></div></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
+          <div class="pack-progress-label" style="margin-top:0">${pct}% hoàn thành</div>
+          <div class="pack-admin-badge">⬡ admin share</div>
+        </div>
       `;
       card.addEventListener('click', () => openSharedPack(pack));
       grid.appendChild(card);
     });
-  }).catch(()=>{});
-}
-
-  // ── Shared packs (admin curated) LAST ──
-  sharedPacks.forEach((pack, i) => {
-    const total = (pack.words || []).length;
-    const prog = pack._userProgress || {};
-    const mastered = (pack.words||[]).filter(w => prog[w.word]).length;
-    const pct = total ? Math.round(mastered / total * 100) : 0;
-    const card = document.createElement('div');
-    card.className = 'pack-card';
-    card.innerHTML = `
-      <div class="pack-icon">${icons[i % icons.length]}</div>
-      <div class="pack-name">${h(pack.name)}</div>
-      <div class="pack-meta">${pack.desc ? h(pack.desc) + '<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
-      <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%"></div></div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
-        <div class="pack-progress-label" style="margin-top:0">${pct}% hoàn thành</div>
-        <div class="pack-admin-badge">⬡ admin share</div>
-      </div>
-    `;
-    card.addEventListener('click', () => openSharedPack(pack));
-    grid.appendChild(card);
-  });
-
-
+  }).catch(() => {});
 }
 
 async function openPack(pack) {
@@ -2354,24 +2270,14 @@ async function checkAccess(user) {
 async function signInWithGoogle() {
   const msgEl = document.getElementById('loginStatusMsg');
   if (msgEl) { msgEl.textContent = '⟳ Đang đăng nhập...'; msgEl.style.color = 'rgba(255,255,255,0.4)'; }
-
-  // Kiểm tra Firebase đã sẵn sàng chưa
-  if (!window._auth || !window._signInWithPopup || !window._GoogleAuthProvider) {
-    if (msgEl) { msgEl.textContent = '✕ Firebase chưa sẵn sàng, thử lại sau giây lát'; msgEl.style.color = 'var(--neon-pink)'; }
-    return;
-  }
-
   try {
     const provider = new window._GoogleAuthProvider();
     await window._signInWithPopup(window._auth, provider);
   } catch(e) {
-    console.error('signInWithGoogle error:', e.code, e.message);
-    if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') {
-      if (msgEl) msgEl.textContent = '';
-    } else if (e.code === 'auth/popup-blocked') {
-      if (msgEl) { msgEl.textContent = '⚠ Popup bị chặn — hãy cho phép popup từ trang này'; msgEl.style.color = 'var(--neon-yellow)'; }
+    if (e.code !== 'auth/popup-closed-by-user') {
+      if (msgEl) { msgEl.textContent = '✕ Đăng nhập thất bại: ' + e.message; msgEl.style.color = 'var(--neon-pink)'; }
     } else {
-      if (msgEl) { msgEl.textContent = '✕ ' + (e.message || e.code); msgEl.style.color = 'var(--neon-pink)'; }
+      if (msgEl) { msgEl.textContent = ''; }
     }
   }
 }
@@ -3391,47 +3297,43 @@ function closeAdminDetail() {
 function initApp() {
   initTTS();
   updateAuthBar();
-  // Chạy initial download trước, xong mới showPacksScreen
-  runInitialDownload();
+  runInitialDownload(); // tải IndexedDB trước, xong gọi showPacksScreen
 }
 
 // ── Tải tất cả gói xuống IndexedDB lần đầu ──
 async function runInitialDownload() {
-  const overlay = document.getElementById('initLoadingOverlay');
-  const titleEl = document.getElementById('initLoadingTitle');
-  const subEl   = document.getElementById('initLoadingSub');
-  const fillEl  = document.getElementById('initProgressFill');
-  const labelEl = document.getElementById('initProgressLabel');
-  const listEl  = document.getElementById('initPackList');
-
-  // Load danh sách packs trước
+  // Load packs metadata từ Firebase (1 read duy nhất)
   packs = await loadPacks();
 
   if (!packs.length) {
-    // Không có gói nào → vào thẳng app
     showPacksScreen();
     return;
   }
 
-  // Kiểm tra xem đã có cache chưa
+  // Kiểm tra pack nào chưa có trong IDB
   let cachedKeys = [];
   try { cachedKeys = await IDB.getAllKeys(); } catch(e) {}
   const cachedSet = new Set(cachedKeys);
   const needDownload = packs.filter(p => !cachedSet.has(p.id));
 
   if (!needDownload.length) {
-    // Tất cả đã có cache → vào thẳng, không cần loading
+    // Tất cả đã có cache → vào thẳng app, không cần loading
     showPacksScreen();
     return;
   }
 
   // Hiện loading overlay
+  const overlay  = document.getElementById('initLoadingOverlay');
+  const titleEl  = document.getElementById('initLoadingTitle');
+  const subEl    = document.getElementById('initLoadingSub');
+  const fillEl   = document.getElementById('initProgressFill');
+  const labelEl  = document.getElementById('initProgressLabel');
+  const listEl   = document.getElementById('initPackList');
+
   overlay.classList.add('show');
   titleEl.textContent = 'Đang tải bộ từ vựng...';
-  subEl.textContent   = `Lần đầu mở app — tải ${needDownload.length} gói về máy`;
+  subEl.textContent   = `Lần đầu mở app — đang tải ${needDownload.length} gói về máy`;
   listEl.innerHTML    = '';
-  fillEl.style.width  = '0%';
-  labelEl.textContent = `0 / ${needDownload.length} gói`;
 
   const icons = ['📘','📗','📙','📕','📒','📓','📔','📑'];
   let done = 0;
@@ -3440,53 +3342,48 @@ async function runInitialDownload() {
     const pack = needDownload[i];
     const icon = icons[packs.indexOf(pack) % icons.length];
 
-    // Thêm row vào list
+    // Thêm dòng vào danh sách
     const row = document.createElement('div');
     row.className = 'init-pack-row loading';
     row.innerHTML = `
-      <div class="init-pack-icon">${icon}</div>
-      <div class="init-pack-name">${h(pack.name)}</div>
-      <div class="init-pack-status loading">⟳ Đang tải</div>
+      <span class="init-pack-icon">${icon}</span>
+      <span class="init-pack-name">${h(pack.name)}</span>
+      <span class="init-pack-status loading">⟳</span>
     `;
     listEl.appendChild(row);
-    // Auto-scroll xuống row mới nhất
     listEl.scrollTop = listEl.scrollHeight;
 
-    // Tải từ Firebase
+    // Tải words từ Firebase → lưu vào IDB
     try {
       const snap = await window._getDoc(packDoc(pack.id));
       if (snap.exists()) {
         const ws = snap.data().words || [];
         await IDB.set(pack.id, { words: ws });
-        // Cập nhật metadata
+        // Lưu metadata vào pack object để render nhanh sau này
         pack._wordCount     = ws.length;
-        pack._masteredCount = ws.filter(w=>w.mastered).length;
-        pack._metaAt        = Date.now();
+        pack._masteredCount = ws.filter(w => w.mastered).length;
         row.className = 'init-pack-row done';
         row.querySelector('.init-pack-status').className = 'init-pack-status done';
         row.querySelector('.init-pack-status').textContent = `✓ ${ws.length} từ`;
       }
     } catch(e) {
-      row.querySelector('.init-pack-status').className = 'init-pack-status';
-      row.querySelector('.init-pack-status').textContent = '✕ Lỗi';
+      row.querySelector('.init-pack-status').textContent = '✕';
       row.style.opacity = '0.4';
     }
 
     done++;
-    const pct = Math.round(done / needDownload.length * 100);
-    fillEl.style.width  = pct + '%';
+    fillEl.style.width  = Math.round(done / needDownload.length * 100) + '%';
     labelEl.textContent = `${done} / ${needDownload.length} gói`;
-    titleEl.textContent = done < needDownload.length ? 'Đang tải bộ từ vựng...' : 'Hoàn tất!';
   }
 
-  // Lưu metadata vào Firestore (1 write duy nhất)
-  savePacks().catch(()=>{});
+  // Lưu metadata (1 write duy nhất)
+  savePacks().catch(() => {});
 
-  // Delay nhỏ để user thấy "Hoàn tất" rồi mới vào app
-  subEl.textContent = '✓ Sẵn sàng! Từ nay mở app sẽ không cần tải lại.';
+  titleEl.textContent = '✓ Hoàn tất!';
+  subEl.textContent   = 'Từ nay mở app sẽ không cần tải lại.';
   fillEl.style.background = 'linear-gradient(90deg,var(--neon-green),var(--neon-cyan))';
-  await new Promise(r => setTimeout(r, 1200));
 
+  await new Promise(r => setTimeout(r, 1000));
   overlay.classList.remove('show');
   showPacksScreen();
 }
