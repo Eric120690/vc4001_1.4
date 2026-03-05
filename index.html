@@ -2354,14 +2354,24 @@ async function checkAccess(user) {
 async function signInWithGoogle() {
   const msgEl = document.getElementById('loginStatusMsg');
   if (msgEl) { msgEl.textContent = '⟳ Đang đăng nhập...'; msgEl.style.color = 'rgba(255,255,255,0.4)'; }
+
+  // Kiểm tra Firebase đã sẵn sàng chưa
+  if (!window._auth || !window._signInWithPopup || !window._GoogleAuthProvider) {
+    if (msgEl) { msgEl.textContent = '✕ Firebase chưa sẵn sàng, thử lại sau giây lát'; msgEl.style.color = 'var(--neon-pink)'; }
+    return;
+  }
+
   try {
     const provider = new window._GoogleAuthProvider();
     await window._signInWithPopup(window._auth, provider);
   } catch(e) {
-    if (e.code !== 'auth/popup-closed-by-user') {
-      if (msgEl) { msgEl.textContent = '✕ Đăng nhập thất bại: ' + e.message; msgEl.style.color = 'var(--neon-pink)'; }
+    console.error('signInWithGoogle error:', e.code, e.message);
+    if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') {
+      if (msgEl) msgEl.textContent = '';
+    } else if (e.code === 'auth/popup-blocked') {
+      if (msgEl) { msgEl.textContent = '⚠ Popup bị chặn — hãy cho phép popup từ trang này'; msgEl.style.color = 'var(--neon-yellow)'; }
     } else {
-      if (msgEl) { msgEl.textContent = ''; }
+      if (msgEl) { msgEl.textContent = '✕ ' + (e.message || e.code); msgEl.style.color = 'var(--neon-pink)'; }
     }
   }
 }
