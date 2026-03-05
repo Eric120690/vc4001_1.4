@@ -1562,15 +1562,26 @@ async function saveData() {
 
 async function loadData() {
   if (!currentPack) return false;
-  // Shared packs: load từ sharedPacks + merge progress của user
+  // Shared packs: thử IDB trước, fallback Firebase
   if (currentPack._isShared) {
+    try {
+      const cached = await IDB.get(currentPack.id);
+      if (cached && cached.words?.length) {
+        // Merge với progress của user
+        const progSnap = await window._getDoc(window._doc(window._db, 'users', getUID(), 'sharedProgress', currentPack.id)).catch(()=>null);
+        const prog = progSnap?.exists() ? (progSnap.data().progress || {}) : {};
+        words = cached.words.map(w => ({ ...w, mastered: !!prog[w.word] }));
+        return true;
+      }
+    } catch(e) {}
+    // Fallback: load từ Firebase nếu chưa có IDB
     try {
       const packSnap = await window._getDoc(window._doc(window._db, 'sharedPacks', currentPack.id));
       if (!packSnap.exists()) return false;
       const packWords = packSnap.data().words || [];
-      // Load user progress
+      await IDB.set(currentPack.id, { words: packWords }).catch(()=>{});
       const progSnap = await window._getDoc(window._doc(window._db, 'users', getUID(), 'sharedProgress', currentPack.id)).catch(()=>null);
-      const prog = progSnap && progSnap.exists() ? (progSnap.data().progress || {}) : {};
+      const prog = progSnap?.exists() ? (progSnap.data().progress || {}) : {};
       words = packWords.map(w => ({ ...w, mastered: !!prog[w.word] }));
       return true;
     } catch(e) { console.warn('loadSharedData error:', e.message); return false; }
@@ -2769,13 +2780,21 @@ async function refreshStatsBar() {
     const snap = await window._getDoc(userDoc());
     const d = snap.exists() ? snap.data() : {};
     const mins = d.totalStudyMinutes || 0;
-    const seen = d.totalWordsSeen || 0;
 
-    // Mastered: sum across all packs
-    const userPacks = d.packs || [];
+    // Dùng metadata cache từ packs[] thay vì load lại Firebase
     let mastered = 0;
-    const packSnaps = await Promise.all(userPacks.map(p => window._getDoc(packDoc(p.id)).catch(()=>null)));
-    packSnaps.forEach(s => { if (s && s.exists()) mastered += (s.data().words||[]).filter(w=>w.mastered).length; });
+    if (packs && packs.length) {
+      mastered = packs.reduce((sum, p) => sum + (p._masteredCount || 0), 0);
+    } else {
+      // Fallback lần đầu chưa có cache: tính từ IDB
+      const userPacks = d.packs || [];
+      await Promise.all(userPacks.map(async p => {
+        try {
+          const cached = await IDB.get(p.id);
+          if (cached && cached.words) mastered += cached.words.filter(w => w.mastered).length;
+        } catch(e) {}
+      }));
+    }
 
     document.getElementById('statHoursVal').textContent = '⏱ ' + fmtMinutes(mins) + ' học';
     document.getElementById('statsBar').style.display = '';
@@ -2787,7 +2806,11 @@ async function refreshStatsBar() {
 //  User progress → /users/{uid}/sharedProgress/{packId}
 // ============================================================
 
+let _cachedSharedPacks = null;
+
 async function loadVisibleSharedPacks() {
+  // Dùng cache nếu đã load rồi
+  if (_cachedSharedPacks !== null) return _cachedSharedPacks;
   try {
     const uid = getUID();
     const snap = await window._getDocs(window._collection(window._db, 'sharedPacks'));
@@ -2807,6 +2830,7 @@ async function loadVisibleSharedPacks() {
         result.push({ ...data, id: d.id, _userProgress: userProgress });
       }
     }
+    _cachedSharedPacks = result;
     return result;
   } catch(e) { console.warn('loadVisibleSharedPacks error:', e); return []; }
 }
@@ -3305,32 +3329,60 @@ function initApp() {
 
 // ── Tải tất cả gói xuống IndexedDB lần đầu ──
 async function runInitialDownload() {
-  // Load packs metadata từ Firebase (1 read duy nhất)
+  // 1. Load packs metadata (1 Firebase read)
   packs = await loadPacks();
 
-  if (!packs.length) {
+  // 2. Load shared packs từ admin (nếu có)
+  let sharedPacks = [];
+  try {
+    const uid = getUID();
+    const snap = await window._getDocs(window._collection(window._db, 'sharedPacks'));
+    for (const d of snap.docs) {
+      const data = d.data();
+      if (!data.words?.length) continue;
+      const vis = data.visibility || 'hidden';
+      if (vis === 'hidden') continue;
+      const forMe = vis === 'all' || (vis === 'specific' && (data.allowedUsers||[]).includes(uid));
+      if (forMe) sharedPacks.push({ ...data, id: d.id });
+    }
+    _cachedSharedPacks = sharedPacks; // cache luôn để không load lại
+  } catch(e) {}
+
+  // 3. Gộp tất cả packs cần tải (own + shared)
+  const allPacksToCheck = [
+    ...packs.map(p => ({ ...p, _source: 'own' })),
+    ...sharedPacks.map(p => ({ ...p, _source: 'shared' }))
+  ];
+
+  if (!allPacksToCheck.length) {
     showPacksScreen();
     return;
   }
 
-  // Kiểm tra pack nào chưa có trong IDB
+  // 4. Kiểm tra IDB — pack nào chưa có?
   let cachedKeys = [];
   try { cachedKeys = await IDB.getAllKeys(); } catch(e) {}
   const cachedSet = new Set(cachedKeys);
-  const needDownload = packs.filter(p => !cachedSet.has(p.id));
 
-  // Với các pack ĐÃ có cache → load metadata từ IDB ngay (không cần Firebase)
+  // Pack đã có cache → đọc metadata từ IDB ngay
   await Promise.all(
-    packs.filter(p => cachedSet.has(p.id)).map(async p => {
+    allPacksToCheck.filter(p => cachedSet.has(p.id)).map(async p => {
       try {
         const cached = await IDB.get(p.id);
-        if (cached && cached.words) {
-          p._wordCount     = cached.words.length;
-          p._masteredCount = cached.words.filter(w => w.mastered).length;
+        if (cached?.words) {
+          if (p._source === 'own') {
+            const orig = packs.find(x => x.id === p.id);
+            if (orig) {
+              orig._wordCount     = cached.words.length;
+              orig._masteredCount = cached.words.filter(w => w.mastered).length;
+            }
+          }
         }
       } catch(e) {}
     })
   );
+
+  const needDownload = allPacksToCheck.filter(p => !cachedSet.has(p.id));
 
   if (!needDownload.length) {
     // Tất cả đã có cache → vào thẳng app
@@ -3338,17 +3390,17 @@ async function runInitialDownload() {
     return;
   }
 
-  // Hiện loading overlay
-  const overlay  = document.getElementById('initLoadingOverlay');
-  const titleEl  = document.getElementById('initLoadingTitle');
-  const subEl    = document.getElementById('initLoadingSub');
-  const fillEl   = document.getElementById('initProgressFill');
-  const labelEl  = document.getElementById('initProgressLabel');
-  const listEl   = document.getElementById('initPackList');
+  // 5. Hiện loading overlay để tải những gói còn thiếu
+  const overlay = document.getElementById('initLoadingOverlay');
+  const titleEl = document.getElementById('initLoadingTitle');
+  const subEl   = document.getElementById('initLoadingSub');
+  const fillEl  = document.getElementById('initProgressFill');
+  const labelEl = document.getElementById('initProgressLabel');
+  const listEl  = document.getElementById('initPackList');
 
   overlay.classList.add('show');
   titleEl.textContent = 'Đang tải bộ từ vựng...';
-  subEl.textContent   = `Lần đầu mở app — đang tải ${needDownload.length} gói về máy`;
+  subEl.textContent   = `Đang tải ${needDownload.length} gói về máy`;
   listEl.innerHTML    = '';
 
   const icons = ['📘','📗','📙','📕','📒','📓','📔','📑'];
@@ -3356,32 +3408,44 @@ async function runInitialDownload() {
 
   for (let i = 0; i < needDownload.length; i++) {
     const pack = needDownload[i];
-    const icon = icons[packs.indexOf(pack) % icons.length];
+    const icon = icons[i % icons.length];
+    const isShared = pack._source === 'shared';
 
-    // Thêm dòng vào danh sách
     const row = document.createElement('div');
     row.className = 'init-pack-row loading';
     row.innerHTML = `
       <span class="init-pack-icon">${icon}</span>
-      <span class="init-pack-name">${h(pack.name)}</span>
+      <span class="init-pack-name">${h(pack.name)}${isShared ? ' <span style="font-size:0.55rem;color:var(--neon-yellow);opacity:0.7">⬡admin</span>' : ''}</span>
       <span class="init-pack-status loading">⟳</span>
     `;
     listEl.appendChild(row);
     listEl.scrollTop = listEl.scrollHeight;
 
-    // Tải words từ Firebase → lưu vào IDB
     try {
-      const snap = await window._getDoc(packDoc(pack.id));
-      if (snap.exists()) {
-        const ws = snap.data().words || [];
-        await IDB.set(pack.id, { words: ws });
-        // Lưu metadata vào pack object để render nhanh sau này
-        pack._wordCount     = ws.length;
-        pack._masteredCount = ws.filter(w => w.mastered).length;
-        row.className = 'init-pack-row done';
-        row.querySelector('.init-pack-status').className = 'init-pack-status done';
-        row.querySelector('.init-pack-status').textContent = `✓ ${ws.length} từ`;
+      let ws = [];
+      if (isShared) {
+        // Shared pack: lấy words từ data đã có (đã load ở bước 2)
+        ws = pack.words || [];
+      } else {
+        // Own pack: load từ Firebase
+        const snap = await window._getDoc(packDoc(pack.id));
+        if (snap.exists()) ws = snap.data().words || [];
       }
+
+      await IDB.set(pack.id, { words: ws });
+
+      // Cập nhật metadata cho own packs
+      if (!isShared) {
+        const orig = packs.find(x => x.id === pack.id);
+        if (orig) {
+          orig._wordCount     = ws.length;
+          orig._masteredCount = ws.filter(w => w.mastered).length;
+        }
+      }
+
+      row.className = 'init-pack-row done';
+      row.querySelector('.init-pack-status').className = 'init-pack-status done';
+      row.querySelector('.init-pack-status').textContent = `✓ ${ws.length} từ`;
     } catch(e) {
       row.querySelector('.init-pack-status').textContent = '✕';
       row.style.opacity = '0.4';
@@ -3392,7 +3456,6 @@ async function runInitialDownload() {
     labelEl.textContent = `${done} / ${needDownload.length} gói`;
   }
 
-  // Lưu metadata (1 write duy nhất)
   savePacks().catch(() => {});
 
   titleEl.textContent = '✓ Hoàn tất!';
