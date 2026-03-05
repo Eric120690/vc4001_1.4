@@ -1580,6 +1580,9 @@ async function loadData() {
     const cached = await IDB.get(currentPack.id);
     if (cached && cached.words?.length) {
       words = cached.words;
+      // Cập nhật metadata trên pack object
+      const p = packs.find(x => x.id === currentPack.id);
+      if (p) { p._wordCount = words.length; p._masteredCount = words.filter(w=>w.mastered).length; }
       const badge = document.getElementById('cloudBadge');
       if (badge) { badge.innerHTML = '📦 <span style="color:var(--neon-green)">Local</span>'; badge.style.color='rgba(57,255,20,0.5)'; }
       return true;
@@ -3316,8 +3319,21 @@ async function runInitialDownload() {
   const cachedSet = new Set(cachedKeys);
   const needDownload = packs.filter(p => !cachedSet.has(p.id));
 
+  // Với các pack ĐÃ có cache → load metadata từ IDB ngay (không cần Firebase)
+  await Promise.all(
+    packs.filter(p => cachedSet.has(p.id)).map(async p => {
+      try {
+        const cached = await IDB.get(p.id);
+        if (cached && cached.words) {
+          p._wordCount     = cached.words.length;
+          p._masteredCount = cached.words.filter(w => w.mastered).length;
+        }
+      } catch(e) {}
+    })
+  );
+
   if (!needDownload.length) {
-    // Tất cả đã có cache → vào thẳng app, không cần loading
+    // Tất cả đã có cache → vào thẳng app
     showPacksScreen();
     return;
   }
