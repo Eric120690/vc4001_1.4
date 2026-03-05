@@ -805,8 +805,9 @@ const IDB = (() => {
   .init-loading-overlay {
     display:none; position:fixed; inset:0; z-index:250;
     background:var(--dark); align-items:center; justify-content:center;
+    pointer-events:none;
   }
-  .init-loading-overlay.show { display:flex; }
+  .init-loading-overlay.show { display:flex; pointer-events:all; }
   .init-loading-box {
     text-align:center; width:100%; max-width:380px; padding:0 24px;
     animation:fadeUp 0.4s ease;
@@ -1187,7 +1188,7 @@ const IDB = (() => {
 </div>
 
 <!-- ===== LOGIN OVERLAY ===== -->
-<div class="login-overlay" id="loginOverlay">
+<div class="login-overlay show" id="loginOverlay">
   <div class="login-box">
     <div class="login-logo">LEXON</div>
     <div class="login-sub">Vocabulary Training System</div>
