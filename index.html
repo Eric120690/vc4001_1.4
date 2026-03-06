@@ -1599,17 +1599,18 @@ async function loadData() {
   if (!currentPack) return false;
   // Shared packs: thử IDB trước, fallback Firebase
   if (currentPack._isShared) {
+    console.log('[loadData] shared pack, checking IDB for', currentPack.id);
     try {
       const cached = await IDB.get(currentPack.id);
+      console.log('[loadData] IDB shared →', cached ? `${cached.words?.length} words` : 'NULL');
       if (cached && cached.words?.length) {
-        // Merge với progress của user
         const progSnap = await window._getDoc(window._doc(window._db, 'users', getUID(), 'sharedProgress', currentPack.id)).catch(()=>null);
         const prog = progSnap?.exists() ? (progSnap.data().progress || {}) : {};
         words = cached.words.map(w => ({ ...w, mastered: !!prog[w.word] }));
         return true;
       }
     } catch(e) {}
-    // Fallback: load từ Firebase nếu chưa có IDB
+    console.log('[loadData] shared: IDB miss, loading from Firebase');
     try {
       const packSnap = await window._getDoc(window._doc(window._db, 'sharedPacks', currentPack.id));
       if (!packSnap.exists()) return false;
@@ -1624,22 +1625,24 @@ async function loadData() {
   // Thử đọc từ IndexedDB trước — không tốn Firebase read
   try {
     const cached = await IDB.get(currentPack.id);
+    console.log('[loadData] IDB.get', currentPack.id, '→', cached ? `${cached.words?.length} words` : 'NULL');
     if (cached && cached.words?.length) {
       words = cached.words;
-      // Cập nhật metadata trên pack object
       const p = packs.find(x => x.id === currentPack.id);
       if (p) { p._wordCount = words.length; p._masteredCount = words.filter(w=>w.mastered).length; }
       const badge = document.getElementById('cloudBadge');
       if (badge) { badge.innerHTML = '📦 <span style="color:var(--neon-green)">Local</span>'; badge.style.color='rgba(57,255,20,0.5)'; }
       return true;
     }
-  } catch(e) { console.warn('IDB read error:', e); }
+  } catch(e) { console.warn('[loadData] IDB read error:', e); }
   // Fallback: đọc từ Firebase
+  console.log('[loadData] Falling back to Firebase for', currentPack.id);
   try {
     const snap = await window._getDoc(packDoc(currentPack.id));
     if (snap.exists() && snap.data().words?.length) {
       words = snap.data().words;
-      IDB.set(currentPack.id, { words }).catch(() => {}); // lưu cho lần sau
+      IDB.set(currentPack.id, { words }).catch(() => {});
+      console.log('[loadData] Saved to IDB:', currentPack.id, words.length, 'words');
       return true;
     }
   } catch(e) { console.warn('loadData error:', e.message); }
