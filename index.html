@@ -1514,15 +1514,50 @@ function packDoc(packId) {
 async function savePacks() {
   try {
     await window._setDoc(userDoc(), { packs, updatedAt: Date.now() }, { merge: true });
+    // Lưu danh sách packs vào IDB luôn
+    IDB.set('__packlist__', { packs }).catch(() => {});
   } catch(e) { console.warn('savePacks error:', e.message); }
 }
 
 async function loadPacks() {
+  // Thử đọc từ IDB trước — không tốn Firebase read
+  try {
+    const cached = await IDB.get('__packlist__');
+    if (cached && cached.packs?.length) {
+      console.log('[IDB] loadPacks from cache:', cached.packs.length);
+      // Sync Firebase ngầm để cập nhật nếu có thay đổi từ thiết bị khác
+      _syncPackListInBackground();
+      return cached.packs;
+    }
+  } catch(e) {}
+  // Fallback: load từ Firebase lần đầu
   try {
     const snap = await window._getDoc(userDoc());
-    if (snap.exists() && snap.data().packs) return snap.data().packs;
+    if (snap.exists() && snap.data().packs) {
+      const p = snap.data().packs;
+      IDB.set('__packlist__', { packs: p }).catch(() => {});
+      return p;
+    }
   } catch(e) { console.warn('loadPacks error:', e.message); }
   return [];
+}
+
+// Sync danh sách packs từ Firebase ngầm (không block UI)
+async function _syncPackListInBackground() {
+  try {
+    const snap = await window._getDoc(userDoc());
+    if (!snap.exists()) return;
+    const remotePacks = snap.data().packs || [];
+    const remoteTime  = snap.data().updatedAt || 0;
+    const cached = await IDB.get('__packlist__');
+    const localTime = cached?.cachedAt || 0;
+    if (remoteTime > localTime) {
+      // Firebase mới hơn → cập nhật IDB và UI
+      IDB.set('__packlist__', { packs: remotePacks }).catch(() => {});
+      packs = remotePacks;
+      renderPacksGrid();
+    }
+  } catch(e) {}
 }
 
 async function saveData() {
@@ -2809,8 +2844,25 @@ async function refreshStatsBar() {
 let _cachedSharedPacks = null;
 
 async function loadVisibleSharedPacks() {
-  // Dùng cache nếu đã load rồi
+  // Dùng memory cache nếu đã load trong session này
   if (_cachedSharedPacks !== null) return _cachedSharedPacks;
+
+  // Thử IDB trước
+  try {
+    const cached = await IDB.get('__sharedpacks__');
+    if (cached && cached.packs) {
+      _cachedSharedPacks = cached.packs;
+      // Sync ngầm
+      _syncSharedPacksInBackground();
+      return _cachedSharedPacks;
+    }
+  } catch(e) {}
+
+  // Fallback: load từ Firebase
+  return _fetchSharedPacksFromFirebase();
+}
+
+async function _fetchSharedPacksFromFirebase() {
   try {
     const uid = getUID();
     const snap = await window._getDocs(window._collection(window._db, 'sharedPacks'));
@@ -2820,19 +2872,26 @@ async function loadVisibleSharedPacks() {
       if (!data.words?.length) continue;
       const vis = data.visibility || 'hidden';
       if (vis === 'hidden') continue;
-      const isAdmin = window._currentUser?.email === window.ADMIN_EMAIL;
-      if (!isAdmin && (vis === 'all' || (vis === 'specific' && (data.allowedUsers||[]).includes(uid)))) {
-        let userProgress = {};
-        try {
-          const progSnap = await window._getDoc(window._doc(window._db,'users',uid,'sharedProgress',d.id));
-          if (progSnap.exists()) userProgress = progSnap.data().progress || {};
-        } catch(e) {}
-        result.push({ ...data, id: d.id, _userProgress: userProgress });
-      }
+      const forMe = vis === 'all' || (vis === 'specific' && (data.allowedUsers||[]).includes(uid));
+      if (!forMe) continue;
+      let userProgress = {};
+      try {
+        const progSnap = await window._getDoc(window._doc(window._db,'users',uid,'sharedProgress',d.id));
+        if (progSnap.exists()) userProgress = progSnap.data().progress || {};
+      } catch(e) {}
+      result.push({ ...data, id: d.id, _userProgress: userProgress });
     }
     _cachedSharedPacks = result;
+    IDB.set('__sharedpacks__', { packs: result }).catch(() => {});
     return result;
   } catch(e) { console.warn('loadVisibleSharedPacks error:', e); return []; }
+}
+
+async function _syncSharedPacksInBackground() {
+  try {
+    const fresh = await _fetchSharedPacksFromFirebase();
+    _cachedSharedPacks = fresh;
+  } catch(e) {}
 }
 
 // ── Share Modal ──
@@ -3335,24 +3394,8 @@ async function runInitialDownload() {
   console.log('[IDB] Own packs:', packs.length);
 
   // 2. Load shared packs từ admin dành cho user này
-  let sharedPacks = [];
-  try {
-    const uid = getUID();
-    const snap = await window._getDocs(window._collection(window._db, 'sharedPacks'));
-    console.log('[IDB] sharedPacks docs total:', snap.docs.length);
-    for (const d of snap.docs) {
-      const data = d.data();
-      const vis = data.visibility || 'hidden';
-      if (vis === 'hidden') continue;
-      if (!data.words?.length) continue;
-      const forMe = vis === 'all' ||
-        (vis === 'specific' && (data.allowedUsers||[]).includes(uid));
-      console.log('[IDB] pack', d.id, 'name=', data.name, 'vis=', vis, 'forMe=', forMe);
-      if (forMe) sharedPacks.push({ ...data, id: d.id });
-    }
-  } catch(e) { console.warn('[IDB] sharedPacks load error:', e); }
-
-  _cachedSharedPacks = sharedPacks;
+  // (dùng IDB nếu có, Firebase nếu chưa)
+  let sharedPacks = await loadVisibleSharedPacks();
   console.log('[IDB] Shared packs for me:', sharedPacks.length);
 
   // 3. Kiểm tra IDB — pack nào đã có cache?
