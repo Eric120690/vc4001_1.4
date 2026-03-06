@@ -10,7 +10,8 @@
 <!-- ✦ Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, getDocs, query, orderBy, limit }
+  import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, getDocs, query, orderBy, limit,
+           enableIndexedDbPersistence }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -27,6 +28,18 @@
   const app  = initializeApp(firebaseConfig);
   const db   = getFirestore(app);
   const auth = getAuth(app);
+
+  // ── Firestore offline persistence — tự cache tất cả reads/writes ──
+  // Khi offline: reads từ cache, writes vào queue → tự sync khi có mạng lại
+  enableIndexedDbPersistence(db).catch(err => {
+    if (err.code === 'failed-precondition') {
+      // Nhiều tab mở cùng lúc — chỉ 1 tab được persistence
+      console.warn('[Firestore] Persistence failed: multiple tabs open');
+    } else if (err.code === 'unimplemented') {
+      // Browser không hỗ trợ
+      console.warn('[Firestore] Persistence not supported in this browser');
+    }
+  });
 
   // Gán ra window
   window._db          = db;
@@ -47,7 +60,6 @@
   // Lắng nghe trạng thái đăng nhập
   onAuthStateChanged(auth, (user) => {
     window._currentUser = user;
-    // Không ghi Firestore ở đây — handleAuthChange sẽ xử lý toàn bộ
     if (!window._firebaseReady) {
       window._firebaseReady = true;
       window.dispatchEvent(new Event('firebase-ready'));
@@ -901,68 +913,27 @@ const IDB = (() => {
   }
   .shared-section-label::after { content:''; flex:1; height:1px; background:linear-gradient(90deg,rgba(255,230,0,0.3),transparent); }
 
-  /* ===== SHARE MODAL ===== */
-  .share-overlay {
-    display:none; position:fixed; inset:0; z-index:180;
-    background:rgba(0,0,0,0.82); backdrop-filter:blur(8px);
-    align-items:center; justify-content:center; padding:20px;
+  /* ===== PUBLISH BUTTON (Admin) ===== */
+  .btn-publish {
+    width:100%; padding:9px 14px; border-radius:12px;
+    border:1px solid rgba(255,255,255,0.1);
+    background:rgba(255,255,255,0.04);
+    color:rgba(255,255,255,0.45); font-family:'Syne',sans-serif;
+    font-size:0.7rem; font-weight:700; letter-spacing:0.05em;
+    cursor:pointer; transition:all 0.18s; text-align:center;
   }
-  .share-overlay.show { display:flex; }
-  .share-modal {
-    background:var(--dark2); border:1px solid rgba(255,230,0,0.2);
-    border-radius:24px; padding:28px; width:100%; max-width:460px;
-    animation:fadeUp 0.3s ease; display:flex; flex-direction:column; max-height:88vh;
+  .btn-publish:hover { background:rgba(255,230,0,0.08); border-color:rgba(255,230,0,0.3); color:var(--neon-yellow); }
+  .btn-publish.published {
+    background:rgba(57,255,20,0.08); border-color:rgba(57,255,20,0.3); color:var(--neon-green);
   }
-  .share-modal-title {
-    font-family:'Syne',sans-serif; font-size:1rem; font-weight:800; letter-spacing:0.06em;
-    background:linear-gradient(90deg,var(--neon-yellow),var(--neon-pink));
-    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
-    margin-bottom:4px;
-  }
-  .share-modal-sub { font-size:0.72rem; color:rgba(255,255,255,0.35); margin-bottom:18px; }
-  .share-radio-group { display:flex; gap:8px; margin-bottom:14px; }
-  .share-radio-btn {
-    flex:1; padding:10px 8px; border-radius:12px; border:1px solid var(--glass-border);
-    background:transparent; color:rgba(255,255,255,0.4); font-family:'Syne',sans-serif;
-    font-size:0.72rem; font-weight:700; cursor:pointer; transition:all 0.18s;
-    letter-spacing:0.04em; text-align:center;
-  }
-  .share-radio-btn.active { background:rgba(255,230,0,0.1); border-color:rgba(255,230,0,0.45); color:var(--neon-yellow); }
-  .share-radio-btn:hover:not(.active) { background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.6); }
-  .share-user-list {
-    display:none; flex-direction:column; gap:4px; max-height:220px; overflow-y:auto;
-    border:1px solid var(--glass-border); border-radius:12px; padding:8px; margin-bottom:14px; background:rgba(0,0,0,0.2);
-  }
-  .share-user-list.show { display:flex; }
-  .share-user-list::-webkit-scrollbar { width:3px; }
-  .share-user-list::-webkit-scrollbar-thumb { background:rgba(0,245,255,0.2); border-radius:3px; }
-  .share-user-row { display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:8px; cursor:pointer; transition:background 0.15s; user-select:none; }
-  .share-user-row:hover { background:rgba(255,255,255,0.04); }
-  .share-user-check { width:18px; height:18px; border-radius:5px; border:1.5px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-size:0.72rem; flex-shrink:0; transition:all 0.15s; }
-  .share-user-check.checked { background:rgba(0,245,255,0.18); border-color:var(--neon-cyan); color:var(--neon-cyan); }
-  .share-user-ava { width:28px; height:28px; border-radius:50%; object-fit:cover; border:1px solid rgba(255,255,255,0.1); flex-shrink:0; }
-  .share-user-ava-ph { width:28px; height:28px; border-radius:50%; background:linear-gradient(135deg,var(--neon-cyan),var(--neon-purple)); display:flex; align-items:center; justify-content:center; font-size:0.7rem; font-weight:800; color:#000; flex-shrink:0; }
-  .share-user-info { flex:1; min-width:0; }
-  .share-user-name { font-size:0.78rem; font-weight:700; color:#fff; font-family:'Syne',sans-serif; }
-  .share-user-email { font-size:0.63rem; color:rgba(255,255,255,0.35); }
-  .share-status-bar { padding:10px 14px; border-radius:10px; font-size:0.75rem; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
-  .share-status-bar.shared-all      { background:rgba(57,255,20,0.07); border:1px solid rgba(57,255,20,0.2); color:var(--neon-green); }
-  .share-status-bar.shared-specific { background:rgba(0,245,255,0.07); border:1px solid rgba(0,245,255,0.2); color:var(--neon-cyan); }
-  .share-status-bar.not-shared      { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); color:rgba(255,255,255,0.3); }
+  .btn-publish.published:hover { background:rgba(255,255,255,0.05); border-color:rgba(255,255,255,0.15); color:rgba(255,255,255,0.4); }
 
-  /* Share button on pack card */
-  .pack-action-btn.share { }
-  .pack-action-btn.share:hover { background:rgba(255,230,0,0.2); color:var(--neon-yellow); }
-  .pack-share-indicator {
-    position:absolute; bottom:10px; right:10px;
-    font-size:0.55rem; letter-spacing:0.12em; padding:2px 7px;
-    background:rgba(255,230,0,0.1); border:1px solid rgba(255,230,0,0.25);
-    border-radius:20px; color:var(--neon-yellow); font-family:'Syne',sans-serif; font-weight:700;
+  /* Section labels in pack grid */
+  .shared-section-label {
+    font-family:'Syne',sans-serif; font-size:0.62rem; font-weight:800;
+    letter-spacing:0.2em; text-transform:uppercase;
+    color:rgba(255,255,255,0.25); padding:4px 2px;
   }
-
-  /* vis badges — keep for shared cards */
-  .vis-all      { background:rgba(57,255,20,0.1);  border:1px solid rgba(57,255,20,0.25);  color:var(--neon-green); }
-  .vis-specific { background:rgba(0,245,255,0.1);  border:1px solid rgba(0,245,255,0.25);  color:var(--neon-cyan); }
 
   /* ===== USER PROFILE PANEL ===== */
   .profile-overlay {
@@ -1136,33 +1107,6 @@ const IDB = (() => {
 </head>
 <body>
 
-<!-- ===== SHARE MODAL (Admin only) ===== -->
-<div class="share-overlay" id="shareOverlay" onclick="closeShareModal(event)">
-  <div class="share-modal">
-    <div class="share-modal-title" id="shareModalTitle">🔗 Chia sẻ gói từ vựng</div>
-    <div class="share-modal-sub" id="shareModalSub"></div>
-
-    <!-- Current share status -->
-    <div class="share-status-bar not-shared" id="shareStatusBar">🔒 Chưa được chia sẻ</div>
-
-    <!-- Visibility selector -->
-    <div style="font-size:0.62rem;color:rgba(255,255,255,0.3);letter-spacing:0.2em;text-transform:uppercase;margin-bottom:8px">Chia sẻ cho ai?</div>
-    <div class="share-radio-group">
-      <button class="share-radio-btn" id="shareVisAll"      onclick="setShareVis('all',this)">🌐 Tất cả users</button>
-      <button class="share-radio-btn" id="shareVisSpecific" onclick="setShareVis('specific',this)">👤 Chọn người</button>
-      <button class="share-radio-btn" id="shareVisHidden"   onclick="setShareVis('hidden',this)">🔒 Bỏ chia sẻ</button>
-    </div>
-
-    <!-- User picker (specific mode) -->
-    <div class="share-user-list" id="shareUserList"></div>
-
-    <!-- Actions -->
-    <div style="display:flex;gap:10px;margin-top:4px">
-      <button class="btn-primary" style="flex:1;justify-content:center;padding:12px" onclick="saveShareSettings()">✓ Lưu cài đặt</button>
-      <button class="btn-cancel" onclick="closeShareModal()">✕ Hủy</button>
-    </div>
-  </div>
-</div>
 
 <!-- ===== ACCESS DENIED OVERLAY ===== -->
 <div class="access-denied-overlay" id="accessDeniedOverlay">
@@ -1533,11 +1477,13 @@ function packDoc(packId) {
 }
 
 async function savePacks() {
-  try {
-    await window._setDoc(userDoc(), { packs, updatedAt: Date.now() }, { merge: true });
-    // Lưu danh sách packs vào IDB luôn
-    IDB.set('__packlist__', { packs }).catch(() => {});
-  } catch(e) { console.warn('savePacks error:', e.message); }
+  // IDB trước — không cần mạng
+  IDB.set('__packlist__', { packs, updatedAt: Date.now() }).catch(() => {});
+  // Firebase ngầm nếu có mạng
+  if (navigator.onLine) {
+    window._setDoc(userDoc(), { packs, updatedAt: Date.now() }, { merge: true })
+      .catch(e => console.warn('savePacks Firebase error:', e.message));
+  }
 }
 
 async function loadPacks() {
@@ -1584,45 +1530,71 @@ async function _syncPackListInBackground() {
 async function saveData() {
   if (!currentPack) return;
   const now = Date.now();
+  const badge = document.getElementById('cloudBadge');
 
-  // Shared packs: chỉ lưu progress của user, không lưu words
-  if (currentPack._isShared) {
-    try {
-      const prog = {};
-      words.forEach(w => { if (w.mastered) prog[w.word] = true; });
-      const progRef = window._doc(window._db, 'users', getUID(), 'sharedProgress', currentPack.id);
-      await window._setDoc(progRef, { progress: prog, updatedAt: now }, { merge: true });
-      // Cập nhật _progress trong IDB ngay — không cần đọc lại Firebase lần sau
-      const cached = await IDB.get(currentPack.id).catch(() => null);
-      if (cached) {
-        await IDB.set(currentPack.id, { ...cached, _progress: prog, _progressUpdatedAt: now }).catch(() => {});
-      }
-      const badge = document.getElementById('cloudBadge');
-      if (badge) { badge.textContent = '☁ Đã lưu tiến độ'; badge.style.color = 'var(--neon-green)'; }
-    } catch(e) { console.warn('saveSharedProgress error:', e.message); }
+  // Admin packs: chỉ lưu progress của user, không lưu words
+  if (currentPack._isAdminPack) {
+    const prog = {};
+    words.forEach(w => { if (w.mastered) prog[w.word] = true; });
+
+    // 1. Lưu IDB NGAY — không cần mạng
+    const cached = await IDB.get('ap::' + currentPack.id).catch(() => null);
+    if (cached) {
+      await IDB.set('ap::' + currentPack.id, { ...cached, _progress: prog, _progressUpdatedAt: now }).catch(() => {});
+    }
+    if (badge) { badge.textContent = '📦 Đã lưu local'; badge.style.color = 'var(--neon-green)'; }
+
+    // 2. Sync Firebase ngầm — không block
+    if (navigator.onLine) {
+      const progRef = window._doc(window._db, 'users', getUID(), 'adminProgress', currentPack.id);
+      window._setDoc(progRef, { progress: prog, updatedAt: now }, { merge: true })
+        .then(() => { if (badge) { badge.textContent = '☁ Đã lưu tiến độ'; badge.style.color = 'var(--neon-green)'; } })
+        .catch(e => console.warn('saveAdminProgress error:', e.message));
+    }
     return;
   }
 
-  try {
-    // Lưu Firebase với updatedAt
-    await window._setDoc(packDoc(currentPack.id),
+  // Own pack: lưu IDB trước, Firebase sau
+  // 1. Lưu IDB NGAY — không cần mạng
+  await IDB.set(currentPack.id, { words, updatedAt: now }).catch(() => {});
+  const p = packs.find(x => x.id === currentPack.id);
+  if (p) { p._wordCount = words.length; p._masteredCount = words.filter(w=>w.mastered).length; }
+  if (badge) { badge.textContent = '📦 Đã lưu local'; badge.style.color = 'rgba(57,255,20,0.7)'; }
+
+  // 2. Sync Firebase ngầm nếu có mạng
+  if (navigator.onLine) {
+    window._setDoc(packDoc(currentPack.id),
       { words, name: currentPack.name, desc: currentPack.desc || '', updatedAt: now },
-      { merge: true });
-
-    // Lưu IDB với updatedAt — để background sync biết version
-    await IDB.set(currentPack.id, { words, updatedAt: now }).catch(() => {});
-
-    // Cập nhật metadata cache
-    const p = packs.find(x => x.id === currentPack.id);
-    if (p) { p._wordCount = words.length; p._masteredCount = words.filter(w=>w.mastered).length; }
-
-    const badge = document.getElementById('cloudBadge');
-    if (badge) { badge.textContent = '☁ Đã lưu'; badge.style.color = 'var(--neon-green)'; }
-  } catch(e) {
-    console.warn('saveData error:', e.message);
-    showToast('error', '✕ Lỗi lưu Firebase: ' + e.message);
-    const badge = document.getElementById('cloudBadge');
-    if (badge) { badge.textContent = '☁ Lỗi lưu!'; badge.style.color = 'var(--neon-pink)'; }
+      { merge: true })
+      .then(async () => {
+        if (badge) { badge.textContent = '☁ Đã lưu'; badge.style.color = 'var(--neon-green)'; }
+        // Nếu pack này đang được publish → bump version để user biết
+        const thisPack = packs.find(x => x.id === currentPack.id);
+        if (isAdmin() && thisPack?.published) {
+          // Cập nhật words mới vào adminPacks luôn
+          await window._setDoc(window._doc(window._db, 'adminPacks', currentPack.id), {
+            words: words.map(w => ({ ...w, mastered: false })),
+            wordCount: words.length, updatedAt: now
+          }, { merge: true }).catch(() => {});
+          await _bumpAppVersion();
+        }
+      })
+      .catch(e => {
+        console.warn('saveData Firebase error:', e.message);
+        if (badge) { badge.textContent = '📦 Local (chưa sync)'; badge.style.color = 'rgba(255,230,0,0.7)'; }
+      });
+  } else {
+    if (badge) { badge.textContent = '📦 Offline — sẽ sync khi có mạng'; badge.style.color = 'rgba(255,230,0,0.7)'; }
+    // Đăng ký sync khi có mạng lại
+    window.addEventListener('online', async function _syncOnReconnect() {
+      window.removeEventListener('online', _syncOnReconnect);
+      try {
+        await window._setDoc(packDoc(currentPack.id),
+          { words, name: currentPack.name, desc: currentPack.desc || '', updatedAt: now },
+          { merge: true });
+        if (badge) { badge.textContent = '☁ Đã sync'; badge.style.color = 'var(--neon-green)'; }
+      } catch(e) { console.warn('Reconnect sync error:', e); }
+    }, { once: true });
   }
 }
 
@@ -1630,7 +1602,7 @@ async function saveData() {
 async function _checkPackUpdate(packId, localUpdatedAt, isShared) {
   try {
     const ref = isShared
-      ? window._doc(window._db, 'sharedPacks', packId)
+      ? window._doc(window._db, 'adminPacks', packId)
       : packDoc(packId);
     const snap = await window._getDoc(ref);
     if (!snap.exists()) return;
@@ -1652,53 +1624,44 @@ async function _checkPackUpdate(packId, localUpdatedAt, isShared) {
 async function loadData() {
   if (!currentPack) return false;
 
-  // ── SHARED PACK: cache-first + background sync progress ──
-  if (currentPack._isShared) {
-    const cached = await IDB.get(currentPack.id).catch(() => null);
+  // ── ADMIN PACK (user học): cache-first + background sync ──
+  if (currentPack._isAdminPack) {
+    const cached = await IDB.get('ap::' + currentPack.id).catch(() => null);
 
     if (cached && cached.words?.length) {
-      // 1. Dùng cache ngay — progress đã lưu trong IDB
       const prog = cached._progress || {};
       words = cached.words.map(w => ({ ...w, mastered: !!prog[w.word] }));
-
-      // 2. Background check xem admin có cập nhật pack không
-      _checkPackUpdate(currentPack.id, cached.updatedAt, true);
+      _checkAdminPackUpdate(currentPack.id, cached.updatedAt);
       return true;
     }
 
     // Cache miss → load Firebase lần đầu
     try {
-      const packSnap = await window._getDoc(window._doc(window._db, 'sharedPacks', currentPack.id));
+      const packSnap = await window._getDoc(window._doc(window._db, 'adminPacks', currentPack.id));
       if (!packSnap.exists()) return false;
       const data = packSnap.data();
       const packWords = data.words || [];
       const progSnap = await window._getDoc(
-        window._doc(window._db, 'users', getUID(), 'sharedProgress', currentPack.id)
+        window._doc(window._db, 'users', getUID(), 'adminProgress', currentPack.id)
       ).catch(() => null);
       const prog = progSnap?.exists() ? (progSnap.data().progress || {}) : {};
-      // Lưu cả words + progress vào IDB
-      await IDB.set(currentPack.id, {
-        words: packWords,
-        updatedAt: data.updatedAt || Date.now(),
-        _progress: prog
+      await IDB.set('ap::' + currentPack.id, {
+        words: packWords, updatedAt: data.updatedAt || Date.now(), _progress: prog
       }).catch(() => {});
       words = packWords.map(w => ({ ...w, mastered: !!prog[w.word] }));
       return true;
-    } catch(e) { console.warn('loadSharedData error:', e.message); return false; }
+    } catch(e) { console.warn('loadAdminPackData error:', e.message); return false; }
   }
 
   // ── OWN PACK: cache-first + background sync ──
   const cached = await IDB.get(currentPack.id).catch(() => null);
 
   if (cached && cached.words?.length) {
-    // 1. Dùng cache ngay — 0 Firebase reads
     words = cached.words;
     const p = packs.find(x => x.id === currentPack.id);
     if (p) { p._wordCount = words.length; p._masteredCount = words.filter(w=>w.mastered).length; }
     const badge = document.getElementById('cloudBadge');
     if (badge) { badge.innerHTML = '📦 <span style="color:var(--neon-green)">Local</span>'; badge.style.color='rgba(57,255,20,0.5)'; }
-
-    // 2. Background check — chỉ đọc Firebase nếu có thay đổi từ thiết bị khác
     _checkPackUpdate(currentPack.id, cached.updatedAt, false);
     return true;
   }
@@ -1709,7 +1672,6 @@ async function loadData() {
     if (snap.exists() && snap.data().words?.length) {
       const data = snap.data();
       words = data.words;
-      // Lưu kèm updatedAt để lần sau so sánh được
       await IDB.set(currentPack.id, { words, updatedAt: data.updatedAt || Date.now() }).catch(() => {});
       return true;
     }
@@ -1717,56 +1679,23 @@ async function loadData() {
   return false;
 }
 
-async function openSharedPack(pack) {
-  currentPack = { ...pack, _isShared: true };
-  document.getElementById('studyPackName').textContent = pack.name;
-  document.getElementById('screen-packs').classList.remove('active');
-  document.getElementById('screen-study').classList.add('active');
-  statsStartSession();
-
-  // Ẩn tab "Nhập Từ" với shared pack
-  const inputTab = document.getElementById('tabInput');
-  if (inputTab) inputTab.style.display = 'none';
-
-  // Hiện loading trước khi có data — KHÔNG switchTab ở đây
-  const fcContent = document.getElementById('fc-content');
-  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', i===1));
-  document.querySelectorAll('.panel').forEach((p,i) => p.classList.toggle('active', i===1));
-  if (fcContent) fcContent.innerHTML = '<div class="warn-box" style="justify-content:center">⟳ Đang tải từ vựng...</div>';
-
-  const badge = document.getElementById('cloudBadge');
-  if (badge) {
-    badge.innerHTML = '⬡ <span style="color:var(--neon-yellow)">Gói Admin</span> · Đang đồng bộ...';
-    badge.style.color = 'rgba(255,230,0,0.4)';
-  }
-
-  // Load data TRƯỚC, render SAU
-  words = [];
-  const loaded = await loadData();
-
-  if (!loaded) {
-    if (fcContent) fcContent.innerHTML = '<div class="warn-box">✕ Không tải được gói từ vựng. Vui lòng thử lại.</div>';
-    if (badge) { badge.textContent = '☁ Lỗi tải'; badge.style.color = 'var(--neon-pink)'; }
-    return;
-  }
-
-  if (badge) {
-    badge.innerHTML = '⬡ <span style="color:var(--neon-yellow)">Gói Admin</span> · Tiến độ được lưu riêng';
-    badge.style.color = 'rgba(255,230,0,0.5)';
-  }
-
-  // Giờ mới render — words đã có đủ dữ liệu
-  buildQueue();
-  renderFlashcard(); // render trực tiếp vào fc-content
-  renderList();
-  updateStudyBadge();
-}
-
-// Override backToPacks để restore input tab
-function backToPacks() {
-  const inputTab = document.getElementById('tabInput');
-  if (inputTab) inputTab.style.display = '';
-  showPacksScreen();
+// Background check admin pack update
+async function _checkAdminPackUpdate(packId, localUpdatedAt) {
+  try {
+    const snap = await window._getDoc(window._doc(window._db, 'adminPacks', packId));
+    if (!snap.exists()) return;
+    const remoteTime = snap.data().updatedAt || 0;
+    if (remoteTime > (localUpdatedAt || 0)) {
+      const newWords = snap.data().words || [];
+      const cached = await IDB.get('ap::' + packId).catch(() => null);
+      await IDB.set('ap::' + packId, {
+        words: newWords,
+        updatedAt: remoteTime,
+        _progress: cached?._progress || {}
+      }).catch(() => {});
+      console.log('[sync] Admin pack updated:', packId);
+    }
+  } catch(e) {}
 }
 
 // ============================================================
@@ -1792,68 +1721,114 @@ async function renderPacksGrid() {
   grid.innerHTML = '';
   const icons = ['📘','📗','📙','📕','📒','📓','📔','📑'];
 
-  // ── Nút tạo gói mới ──
-  const addCard = document.createElement('div');
-  addCard.className = 'pack-add-card';
-  addCard.innerHTML = '<div class="pack-add-icon">⊕</div><div class="pack-add-label">TẠO GÓI MỚI</div>';
-  addCard.onclick = () => openPackModal();
-  grid.appendChild(addCard);
+  if (isAdmin()) {
+    // ── ADMIN: chỉ thấy pack của mình, có nút publish ──
+    const addCard = document.createElement('div');
+    addCard.className = 'pack-add-card';
+    addCard.innerHTML = '<div class="pack-add-icon">⊕</div><div class="pack-add-label">TẠO GÓI MỚI</div>';
+    addCard.onclick = () => openPackModal();
+    grid.appendChild(addCard);
 
-  // ── Render NGAY từ metadata cache — 0 Firebase reads ──
-  packs.forEach((pack, i) => {
-    const total    = pack._wordCount     ?? 0;
-    const mastered = pack._masteredCount ?? 0;
-    const pct = total ? Math.round(mastered / total * 100) : 0;
-    const shareInfo = pack.shareVisibility;
-    const shareIndicator = isAdmin() && shareInfo && shareInfo !== 'hidden'
-      ? `<div class="pack-share-indicator">${shareInfo==='all'?'🌐 Đang share':'👤 Share riêng'}</div>` : '';
-    const shareBtn = isAdmin()
-      ? `<button class="pack-action-btn share" onclick="openShareModal('${pack.id}',event)" title="Chia sẻ gói này">🔗</button>` : '';
-    const card = document.createElement('div');
-    card.className = 'pack-card';
-    card.innerHTML = `
-      <div class="pack-actions">
-        <button class="pack-action-btn edit" onclick="editPack('${pack.id}',event)">✎</button>
-        ${shareBtn}
-        <button class="pack-action-btn" onclick="deletePack('${pack.id}',event)">✕</button>
-      </div>
-      <div class="pack-icon">${icons[i % icons.length]}</div>
-      <div class="pack-name">${h(pack.name)}</div>
-      <div class="pack-meta">${pack.desc ? h(pack.desc)+'<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
-      <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%"></div></div>
-      <div class="pack-progress-label">${pct}% hoàn thành</div>
-      ${shareIndicator}
-    `;
-    card.addEventListener('click', () => openPack(pack));
-    grid.appendChild(card);
-  });
-
-  // ── Shared packs — load nền, không block UI ──
-  loadVisibleSharedPacks().then(allSharedPacks => {
-    const ownIds = new Set(packs.map(p => p.id));
-    const sharedPacks = allSharedPacks.filter(p => !ownIds.has(p.id));
-    if (!sharedPacks.length) return;
-    sharedPacks.forEach((pack, i) => {
-      const total = (pack.words || []).length;
-      const prog = pack._userProgress || {};
-      const mastered = (pack.words||[]).filter(w => prog[w.word]).length;
+    packs.forEach((pack, i) => {
+      const total    = pack._wordCount     ?? 0;
+      const mastered = pack._masteredCount ?? 0;
       const pct = total ? Math.round(mastered / total * 100) : 0;
+      const isPublished = !!pack.published;
       const card = document.createElement('div');
       card.className = 'pack-card';
       card.innerHTML = `
+        <div class="pack-actions">
+          <button class="pack-action-btn edit" onclick="editPack('${pack.id}',event)">✎</button>
+          <button class="pack-action-btn" onclick="deletePack('${pack.id}',event)">✕</button>
+        </div>
         <div class="pack-icon">${icons[i % icons.length]}</div>
         <div class="pack-name">${h(pack.name)}</div>
         <div class="pack-meta">${pack.desc ? h(pack.desc)+'<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
         <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%"></div></div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
-          <div class="pack-progress-label" style="margin-top:0">${pct}% hoàn thành</div>
-          <div class="pack-admin-badge">⬡ admin share</div>
-        </div>
+        <div class="pack-progress-label" style="margin-bottom:10px">${pct}% hoàn thành</div>
+        <button class="btn-publish ${isPublished?'published':''}" onclick="togglePublish('${pack.id}',event)">
+          ${isPublished ? '🌐 Đang public · Bấm để ẩn' : '📤 Publish cho học viên'}
+        </button>
       `;
-      card.addEventListener('click', () => openSharedPack(pack));
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.pack-actions') || e.target.closest('.btn-publish')) return;
+        openPack(pack);
+      });
       grid.appendChild(card);
     });
-  }).catch(() => {});
+
+  } else {
+    // ── USER: thấy pack của admin (published) + pack riêng ──
+
+    // Pack của admin — load từ IDB cache
+    loadAdminPacks().then(adminPacks => {
+      if (!adminPacks.length) return;
+      // Section label
+      const label = document.createElement('div');
+      label.className = 'shared-section-label';
+      label.style.cssText = 'grid-column:1/-1';
+      label.innerHTML = '⬡ Giáo trình';
+      grid.insertBefore(label, grid.firstChild);
+
+      adminPacks.forEach((pack, i) => {
+        const cached = pack._cached || {};
+        const total = cached.words?.length ?? (pack.wordCount || 0);
+        const prog = cached._progress || {};
+        const mastered = cached.words ? cached.words.filter(w => prog[w.word]).length : 0;
+        const pct = total ? Math.round(mastered / total * 100) : 0;
+        const card = document.createElement('div');
+        card.className = 'pack-card shared-pack-card';
+        card.innerHTML = `
+          <div class="pack-icon">${icons[i % icons.length]}</div>
+          <div class="pack-name">${h(pack.name)}</div>
+          <div class="pack-meta">${pack.desc ? h(pack.desc)+'<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
+          <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%"></div></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
+            <div class="pack-progress-label" style="margin-top:0">${pct}% hoàn thành</div>
+            <div class="pack-admin-badge">⬡ giáo trình</div>
+          </div>
+        `;
+        card.addEventListener('click', () => openAdminPack(pack));
+        grid.appendChild(card);
+      });
+    }).catch(() => {});
+
+    // Pack riêng của user
+    if (packs.length) {
+      const myLabel = document.createElement('div');
+      myLabel.className = 'shared-section-label';
+      myLabel.style.cssText = 'grid-column:1/-1;margin-top:8px';
+      myLabel.innerHTML = '◈ Gói của tôi';
+      grid.appendChild(myLabel);
+    }
+
+    const addCard = document.createElement('div');
+    addCard.className = 'pack-add-card';
+    addCard.innerHTML = '<div class="pack-add-icon">⊕</div><div class="pack-add-label">TẠO GÓI MỚI</div>';
+    addCard.onclick = () => openPackModal();
+    grid.appendChild(addCard);
+
+    packs.forEach((pack, i) => {
+      const total    = pack._wordCount     ?? 0;
+      const mastered = pack._masteredCount ?? 0;
+      const pct = total ? Math.round(mastered / total * 100) : 0;
+      const card = document.createElement('div');
+      card.className = 'pack-card';
+      card.innerHTML = `
+        <div class="pack-actions">
+          <button class="pack-action-btn edit" onclick="editPack('${pack.id}',event)">✎</button>
+          <button class="pack-action-btn" onclick="deletePack('${pack.id}',event)">✕</button>
+        </div>
+        <div class="pack-icon">${icons[i % icons.length]}</div>
+        <div class="pack-name">${h(pack.name)}</div>
+        <div class="pack-meta">${pack.desc ? h(pack.desc)+'<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
+        <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%"></div></div>
+        <div class="pack-progress-label">${pct}% hoàn thành</div>
+      `;
+      card.addEventListener('click', () => openPack(pack));
+      grid.appendChild(card);
+    });
+  }
 }
 
 async function openPack(pack) {
@@ -1922,9 +1897,9 @@ async function deletePack(id, e) {
   const p = packs.find(p => p.id === id);
   if (!confirm(`Xóa gói "${p?.name}"? Toàn bộ từ vựng sẽ bị mất.`)) return;
   try { await window._deleteDoc(packDoc(id)); } catch(err) {}
-  // Nếu admin đang xóa, xóa luôn shared pack tương ứng nếu có
-  if (isAdmin()) {
-    try { await window._deleteDoc(window._doc(window._db, 'sharedPacks', id)); } catch(err) {}
+  // Nếu admin đang xóa, xóa luôn adminPacks tương ứng nếu đã publish
+  if (isAdmin() && p?.published) {
+    try { await window._deleteDoc(window._doc(window._db, 'adminPacks', id)); } catch(err) {}
   }
   packs = packs.filter(p => p.id !== id);
   await savePacks();
@@ -2908,205 +2883,142 @@ async function refreshStatsBar() {
 }
 
 // ============================================================
-//  Admin shares own pack → synced to /sharedPacks/{packId}
-//  User progress → /users/{uid}/sharedProgress/{packId}
+//  ADMIN PUBLISH SYSTEM
+//  Firestore: /adminPacks/{packId} — public cho mọi user approved
+//  Progress:  /users/{uid}/adminProgress/{packId}
 // ============================================================
 
-let _cachedSharedPacks = null;
+let _cachedAdminPacks = null; // memory cache trong session
 
-async function loadVisibleSharedPacks() {
-  // Dùng memory cache nếu đã load trong session này
-  if (_cachedSharedPacks !== null) return _cachedSharedPacks;
+// ── Tăng version app mỗi khi admin thay đổi data ──
+async function _bumpAppVersion() {
+  const newVersion = Date.now();
+  await window._setDoc(
+    window._doc(window._db, 'appMeta', 'version'),
+    { version: newVersion, updatedAt: newVersion },
+    { merge: true }
+  ).catch(e => console.warn('bumpVersion error:', e));
+  return newVersion;
+}
+
+// Admin bật/tắt publish cho pack
+async function togglePublish(packId, e) {
+  if (e) e.stopPropagation();
+  if (!isAdmin()) return;
+  const pack = packs.find(p => p.id === packId);
+  if (!pack) return;
+
+  const willPublish = !pack.published;
+
+  try {
+    if (willPublish) {
+      // Lấy words mới nhất từ pack của admin
+      const cached = await IDB.get(packId).catch(() => null);
+      const words = cached?.words || [];
+      if (!words.length) {
+        // Fallback: load từ Firebase
+        const snap = await window._getDoc(packDoc(packId));
+        const ws = snap.exists() ? snap.data().words || [] : [];
+        await window._setDoc(window._doc(window._db, 'adminPacks', packId), {
+          id: packId, name: pack.name, desc: pack.desc || '',
+          words: ws.map(w => ({ ...w, mastered: false })),
+          wordCount: ws.length,
+          published: true, updatedAt: Date.now()
+        });
+      } else {
+        await window._setDoc(window._doc(window._db, 'adminPacks', packId), {
+          id: packId, name: pack.name, desc: pack.desc || '',
+          words: words.map(w => ({ ...w, mastered: false })),
+          wordCount: words.length,
+          published: true, updatedAt: Date.now()
+        });
+      }
+    } else {
+      // Ẩn pack — xóa khỏi adminPacks
+      await window._deleteDoc(window._doc(window._db, 'adminPacks', packId)).catch(() => {});
+    }
+
+    pack.published = willPublish;
+    await _bumpAppVersion(); // báo cho user biết có data mới
+    await savePacks();
+    _cachedAdminPacks = null; // reset cache
+    renderPacksGrid();
+    showToast('success', willPublish ? '🌐 Đã publish cho học viên' : '🔒 Đã ẩn khỏi học viên');
+  } catch(e) {
+    showToast('error', '✕ Lỗi: ' + e.message);
+  }
+}
+
+// Load danh sách admin packs (IDB-first + background sync)
+async function loadAdminPacks() {
+  if (_cachedAdminPacks !== null) return _cachedAdminPacks;
 
   // Thử IDB trước
   try {
-    const cached = await IDB.get('__sharedpacks__');
-    if (cached && cached.packs) {
-      _cachedSharedPacks = cached.packs;
-      // Sync ngầm
-      _syncSharedPacksInBackground();
-      return _cachedSharedPacks;
+    const cached = await IDB.get('__adminpacks__').catch(() => null);
+    if (cached && cached.packs?.length) {
+      _cachedAdminPacks = cached.packs;
+      _syncAdminPacksInBackground();
+      return _cachedAdminPacks;
     }
   } catch(e) {}
 
   // Fallback: load từ Firebase
-  return _fetchSharedPacksFromFirebase();
+  return _fetchAdminPacksFromFirebase();
 }
 
-async function _fetchSharedPacksFromFirebase() {
+async function _fetchAdminPacksFromFirebase() {
   try {
-    const uid = getUID();
-    const snap = await window._getDocs(window._collection(window._db, 'sharedPacks'));
-    const result = [];
-    for (const d of snap.docs) {
-      const data = d.data();
-      if (!data.words?.length) continue;
-      const vis = data.visibility || 'hidden';
-      if (vis === 'hidden') continue;
-      const forMe = vis === 'all' || (vis === 'specific' && (data.allowedUsers||[]).includes(uid));
-      if (!forMe) continue;
-      let userProgress = {};
-      try {
-        const progSnap = await window._getDoc(window._doc(window._db,'users',uid,'sharedProgress',d.id));
-        if (progSnap.exists()) userProgress = progSnap.data().progress || {};
-      } catch(e) {}
-      result.push({ ...data, id: d.id, _userProgress: userProgress });
-    }
-    _cachedSharedPacks = result;
-    IDB.set('__sharedpacks__', { packs: result, updatedAt: Date.now() }).catch(() => {});
+    const snap = await window._getDocs(window._collection(window._db, 'adminPacks'));
+    const result = snap.docs
+      .map(d => ({ ...d.data(), id: d.id }))
+      .filter(p => p.published !== false);
+    _cachedAdminPacks = result;
+    await IDB.set('__adminpacks__', { packs: result, updatedAt: Date.now() }).catch(() => {});
     return result;
-  } catch(e) { console.warn('loadVisibleSharedPacks error:', e); return []; }
+  } catch(e) { console.warn('loadAdminPacks error:', e); return []; }
 }
 
-async function _syncSharedPacksInBackground() {
+async function _syncAdminPacksInBackground() {
   try {
-    const fresh = await _fetchSharedPacksFromFirebase();
-    _cachedSharedPacks = fresh;
+    const fresh = await _fetchAdminPacksFromFirebase();
+    _cachedAdminPacks = fresh;
   } catch(e) {}
 }
 
-// ── Share Modal ──
-let _sharePackId   = null;
-let _shareVis      = 'hidden';
-let _shareSelected = new Set();
-let _shareApprovedUsers = [];
+// Mở pack của admin để học (tương tự openSharedPack cũ)
+async function openAdminPack(pack) {
+  currentPack = { ...pack, _isAdminPack: true };
+  document.getElementById('studyPackName').textContent = pack.name;
+  document.getElementById('screen-packs').classList.remove('active');
+  document.getElementById('screen-study').classList.add('active');
+  statsStartSession();
 
-async function openShareModal(packId, e) {
-  if (e) e.stopPropagation();
-  if (!isAdmin()) return;
-  _sharePackId = packId;
+  // Ẩn tab Nhập Từ với admin pack
+  const inputTab = document.getElementById('tabInput');
+  if (inputTab) inputTab.style.display = 'none';
 
-  let existing = null;
-  try {
-    const snap = await window._getDoc(window._doc(window._db,'sharedPacks',packId));
-    if (snap.exists()) existing = snap.data();
-  } catch(e) {}
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', i===1));
+  document.querySelectorAll('.panel').forEach((p,i) => p.classList.toggle('active', i===1));
 
-  _shareVis = existing?.visibility || 'hidden';
-  _shareSelected = new Set(existing?.allowedUsers || []);
+  const fcContent = document.getElementById('fc-content');
+  if (fcContent) fcContent.innerHTML = '<div class="warn-box" style="justify-content:center">⟳ Đang tải từ vựng...</div>';
 
-  const pack = packs.find(p=>p.id===packId);
-  document.getElementById('shareModalTitle').textContent = `🔗 Chia sẻ: ${pack?.name || ''}`;
-  const wordCount = existing?.words?.length || 0;
-  document.getElementById('shareModalSub').textContent = wordCount
-    ? `${wordCount} từ đang được chia sẻ · Lưu lại để đồng bộ từ mới nhất`
-    : 'Chưa được chia sẻ · Nhấn Lưu để đồng bộ từ vựng';
+  const badge = document.getElementById('cloudBadge');
+  if (badge) { badge.innerHTML = '⬡ <span style="color:var(--neon-yellow)">Giáo trình</span>'; badge.style.color = 'rgba(255,230,0,0.5)'; }
 
-  const statusBar = document.getElementById('shareStatusBar');
-  if (_shareVis === 'all') {
-    statusBar.className = 'share-status-bar shared-all';
-    statusBar.textContent = '🌐 Đang chia sẻ với tất cả users';
-  } else if (_shareVis === 'specific') {
-    statusBar.className = 'share-status-bar shared-specific';
-    statusBar.textContent = `👤 Đang chia sẻ với ${_shareSelected.size} người dùng`;
-  } else {
-    statusBar.className = 'share-status-bar not-shared';
-    statusBar.textContent = '🔒 Chưa được chia sẻ';
-  }
+  words = [];
+  const loaded = await loadData();
 
-  document.getElementById('shareVisAll').classList.toggle('active', _shareVis==='all');
-  document.getElementById('shareVisSpecific').classList.toggle('active', _shareVis==='specific');
-  document.getElementById('shareVisHidden').classList.toggle('active', _shareVis==='hidden');
-
-  _shareApprovedUsers = [];
-  try {
-    const usersSnap = await window._getDocs(window._collection(window._db,'users'));
-    _shareApprovedUsers = usersSnap.docs
-      .map(d=>({uid:d.id,...d.data()}))
-      .filter(u=>u.email && u.email!==window.ADMIN_EMAIL && u.accessStatus==='approved');
-  } catch(e) {}
-
-  renderShareUserList();
-  document.getElementById('shareOverlay').classList.add('show');
-}
-
-function renderShareUserList() {
-  const listEl = document.getElementById('shareUserList');
-  listEl.classList.toggle('show', _shareVis==='specific');
-  if (_shareVis !== 'specific') return;
-  if (!_shareApprovedUsers.length) {
-    listEl.innerHTML = '<div style="color:rgba(255,255,255,0.25);font-size:0.75rem;padding:10px;text-align:center">Chưa có user nào được duyệt.</div>';
+  if (!loaded) {
+    if (fcContent) fcContent.innerHTML = '<div class="warn-box">✕ Không tải được gói từ vựng.</div>';
     return;
   }
-  listEl.innerHTML = _shareApprovedUsers.map(u => {
-    const checked = _shareSelected.has(u.uid);
-    const initials = (u.displayName||u.email).charAt(0).toUpperCase();
-    const avatarHTML = u.photoURL
-      ? `<img src="${u.photoURL}" class="share-user-ava" referrerpolicy="no-referrer">`
-      : `<div class="share-user-ava-ph">${initials}</div>`;
-    return `
-      <div class="share-user-row" onclick="toggleShareUser('${u.uid}')">
-        <div class="share-user-check ${checked?'checked':''}" id="suc-${u.uid}">${checked?'\u2713':''}</div>
-        ${avatarHTML}
-        <div class="share-user-info">
-          <div class="share-user-name">${u.displayName||u.email.split('@')[0]}</div>
-          <div class="share-user-email">${u.email}</div>
-        </div>
-      </div>`;
-  }).join('');
+
+  buildQueue(); renderFlashcard(); renderList(); updateStudyBadge();
 }
 
-function toggleShareUser(uid) {
-  if (_shareSelected.has(uid)) _shareSelected.delete(uid);
-  else _shareSelected.add(uid);
-  const el = document.getElementById('suc-'+uid);
-  if (el) { el.classList.toggle('checked', _shareSelected.has(uid)); el.textContent = _shareSelected.has(uid)?'\u2713':''; }
-}
 
-function setShareVis(vis, btn) {
-  _shareVis = vis;
-  document.querySelectorAll('.share-radio-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  renderShareUserList();
-}
-
-async function saveShareSettings() {
-  if (!_sharePackId) return;
-  try {
-    const pack = packs.find(p=>p.id===_sharePackId);
-    if (!pack) return;
-
-    if (_shareVis === 'hidden') {
-      await window._deleteDoc(window._doc(window._db,'sharedPacks',_sharePackId)).catch(()=>{});
-      pack.shareVisibility = null;
-    } else {
-      // Lấy từ vựng mới nhất từ pack của admin
-      const packSnap = await window._getDoc(packDoc(_sharePackId));
-      const latestWords = packSnap.exists() ? (packSnap.data().words||[]) : [];
-      await window._setDoc(window._doc(window._db,'sharedPacks',_sharePackId), {
-        id: _sharePackId,
-        name: pack.name,
-        desc: pack.desc || '',
-        icon: pack.icon || '\uD83C\uDF1F',
-        words: latestWords.map(w=>({...w, mastered:false})),
-        visibility: _shareVis,
-        allowedUsers: [..._shareSelected],
-        sharedBy: getUID(),
-        updatedAt: Date.now()
-      });
-      pack.shareVisibility = _shareVis;
-    }
-
-    await window._setDoc(userDoc(), { packs }, { merge: true });
-    document.getElementById('shareOverlay').classList.remove('show');
-    renderPacksGrid();
-
-    const msg = _shareVis==='hidden' ? '\uD83D\uDD12 Đã bỏ chia sẻ'
-      : _shareVis==='all' ? '\uD83C\uDF10 Đã chia sẻ với tất cả users'
-      : `\uD83D\uDC64 Đã chia sẻ với ${_shareSelected.size} người`;
-    const notif = document.createElement('div');
-    notif.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0d0d1f;border:1px solid rgba(57,255,20,0.3);border-radius:12px;padding:10px 22px;color:var(--neon-green);font-size:0.8rem;font-family:Syne,sans-serif;z-index:999;animation:fadeUp 0.3s ease';
-    notif.textContent = msg;
-    document.body.appendChild(notif);
-    setTimeout(()=>notif.remove(), 2500);
-  } catch(e) { alert('Lỗi lưu: '+e.message); }
-}
-
-function closeShareModal(e) {
-  if (!e || e.target===document.getElementById('shareOverlay')) {
-    document.getElementById('shareOverlay').classList.remove('show');
-  }
-}
 
 // ============================================================
 //  ADMIN PANEL
@@ -3457,25 +3369,65 @@ function initApp() {
   runInitialDownload(); // tải IndexedDB trước, xong gọi showPacksScreen
 }
 
-// ── Tải tất cả gói xuống IndexedDB lần đầu ──
+// ── Tải tất cả gói xuống IndexedDB — version-based cache ──
 async function runInitialDownload() {
 
-  // 1. Load metadata packs của chính user (1 Firebase read)
+  // 1. Load metadata packs của chính user (IDB-first)
   packs = await loadPacks();
-  console.log('[IDB] Own packs:', packs.length);
 
-  // 2. Load shared packs từ admin dành cho user này
-  // (dùng IDB nếu có, Firebase nếu chưa)
-  let sharedPacks = await loadVisibleSharedPacks();
-  console.log('[IDB] Shared packs for me:', sharedPacks.length);
+  // Admin chỉ quản lý pack, không cần download admin packs
+  if (isAdmin()) {
+    showPacksScreen();
+    return;
+  }
 
-  // 3. Kiểm tra IDB — pack nào đã có cache?
+  // 2. Đọc version hiện tại từ IDB
+  let localVersion = 0;
+  try {
+    const v = await IDB.get('__appversion__');
+    localVersion = v?.version || 0;
+  } catch(e) {}
+
+  // 3. Nếu offline → dùng cache hiện có, vào app luôn
+  if (!navigator.onLine) {
+    console.log('[offline] Using cached data, localVersion:', localVersion);
+    await _loadMetaFromCache();
+    showPacksScreen();
+    return;
+  }
+
+  // 4. Fetch version từ Firebase — chỉ 1 read duy nhất
+  let remoteVersion = 0;
+  try {
+    const snap = await window._getDoc(window._doc(window._db, 'appMeta', 'version'));
+    remoteVersion = snap.exists() ? (snap.data().version || 0) : 0;
+  } catch(e) {
+    console.warn('[version] Cannot fetch, using cache');
+    await _loadMetaFromCache();
+    showPacksScreen();
+    return;
+  }
+
+  console.log('[version] local:', localVersion, 'remote:', remoteVersion);
+
+  // 5. Version giống nhau → dùng cache 100%, không tải gì thêm
+  if (remoteVersion && localVersion === remoteVersion) {
+    console.log('[version] Cache is fresh — 0 Firebase reads');
+    await _loadMetaFromCache();
+    showPacksScreen();
+    return;
+  }
+
+  // 6. Version khác (hoặc lần đầu) → download tất cả admin packs
+  const adminPacks = await _fetchAdminPacksFromFirebase();
+  console.log('[download] Admin packs to sync:', adminPacks.length);
+
+  // Kiểm tra IDB — pack nào đã có cache?
   let cachedKeys = [];
   try { cachedKeys = await IDB.getAllKeys(); } catch(e) {}
   const cachedSet = new Set(cachedKeys);
-  console.log('[IDB] Already cached:', cachedSet.size, 'packs');
 
-  // 4. Đọc metadata từ IDB cho own packs đã cache
+  // Đọc metadata từ IDB cho own packs đã cache
   for (const p of packs) {
     if (cachedSet.has(p.id)) {
       try {
@@ -3488,22 +3440,37 @@ async function runInitialDownload() {
     }
   }
 
-  // 5. Tìm những gói cần tải (chưa có trong IDB)
-  const ownNeed    = packs.filter(p => !cachedSet.has(p.id));
-  const sharedNeed = sharedPacks.filter(p => !cachedSet.has(p.id));
+  // Tìm pack cần tải/cập nhật
+  const ownNeed = packs.filter(p => !cachedSet.has(p.id));
+  const adminNeed = [];
+  for (const p of adminPacks) {
+    const key = 'ap::' + p.id;
+    if (!cachedSet.has(key)) {
+      adminNeed.push({ ...p, _reason: 'new' });
+    } else {
+      try {
+        const cached = await IDB.get(key);
+        if ((p.updatedAt || 0) > (cached?.updatedAt || 0)) {
+          adminNeed.push({ ...p, _reason: 'updated' });
+        }
+      } catch(e) { adminNeed.push({ ...p, _reason: 'new' }); }
+    }
+  }
+
   const needDownload = [
-    ...ownNeed.map(p => ({ ...p, _source: 'own' })),
-    ...sharedNeed.map(p => ({ ...p, _source: 'shared' }))
+    ...ownNeed.map(p  => ({ ...p, _source: 'own' })),
+    ...adminNeed.map(p => ({ ...p, _source: 'admin' }))
   ];
-  console.log('[IDB] Need download:', needDownload.length, '(own:', ownNeed.length, 'shared:', sharedNeed.length, ')');
+  console.log('[download] Need:', needDownload.length, '(own:', ownNeed.length, 'admin:', adminNeed.length, ')');
 
   if (!needDownload.length) {
-    console.log('[IDB] All cached, going straight to app');
+    // Không có gì mới → cập nhật version và vào app
+    await IDB.set('__appversion__', { version: remoteVersion, cachedAt: Date.now() }).catch(() => {});
     showPacksScreen();
     return;
   }
 
-  // 6. Hiện loading overlay
+  // 7. Hiện loading overlay
   const overlay = document.getElementById('initLoadingOverlay');
   const titleEl = document.getElementById('initLoadingTitle');
   const subEl   = document.getElementById('initLoadingSub');
@@ -3512,8 +3479,8 @@ async function runInitialDownload() {
   const listEl  = document.getElementById('initPackList');
 
   overlay.classList.add('show');
-  titleEl.textContent = 'Đang tải bộ từ vựng...';
-  subEl.textContent   = `Đang tải ${needDownload.length} gói về máy`;
+  titleEl.textContent = localVersion ? '↻ Đang cập nhật dữ liệu...' : 'Đang tải bộ từ vựng...';
+  subEl.textContent   = `${needDownload.length} gói cần ${localVersion ? 'cập nhật' : 'tải về máy'}`;
   listEl.innerHTML    = '';
   fillEl.style.width  = '0%';
   fillEl.style.background = 'linear-gradient(90deg,var(--neon-cyan),var(--neon-purple))';
@@ -3522,15 +3489,15 @@ async function runInitialDownload() {
   let done = 0;
 
   for (let i = 0; i < needDownload.length; i++) {
-    const pack     = needDownload[i];
-    const isShared = pack._source === 'shared';
-    const icon     = icons[i % icons.length];
+    const pack       = needDownload[i];
+    const isAdminPack = pack._source === 'admin';
+    const icon        = icons[i % icons.length];
 
     const row = document.createElement('div');
     row.className = 'init-pack-row loading';
     row.innerHTML = `
       <span class="init-pack-icon">${icon}</span>
-      <span class="init-pack-name">${h(pack.name)}${isShared ? ' <span style="font-size:0.55rem;color:var(--neon-yellow);opacity:0.7">⬡</span>' : ''}</span>
+      <span class="init-pack-name">${h(pack.name)}${isAdminPack ? ` <span style="font-size:0.55rem;color:var(--neon-yellow);opacity:0.7">${pack._reason==='updated'?'⟳':'⬡'}</span>` : ''}</span>
       <span class="init-pack-status loading">⟳</span>
     `;
     listEl.appendChild(row);
@@ -3538,29 +3505,26 @@ async function runInitialDownload() {
 
     try {
       let ws = [];
-      if (isShared) {
+      if (isAdminPack) {
         ws = pack.words || [];
+        const progSnap = await window._getDoc(
+          window._doc(window._db, 'users', getUID(), 'adminProgress', pack.id)
+        ).catch(() => null);
+        const prog = progSnap?.exists() ? (progSnap.data().progress || {}) : {};
+        await IDB.set('ap::' + pack.id, { words: ws, updatedAt: pack.updatedAt || Date.now(), _progress: prog });
       } else {
         const snap = await window._getDoc(packDoc(pack.id));
         if (snap.exists()) ws = snap.data().words || [];
-      }
-
-      await IDB.set(pack.id, { words: ws, updatedAt: Date.now() });
-
-      if (!isShared) {
+        await IDB.set(pack.id, { words: ws, updatedAt: Date.now() });
         const orig = packs.find(x => x.id === pack.id);
-        if (orig) {
-          orig._wordCount     = ws.length;
-          orig._masteredCount = ws.filter(w => w.mastered).length;
-        }
+        if (orig) { orig._wordCount = ws.length; orig._masteredCount = ws.filter(w => w.mastered).length; }
       }
 
       row.className = 'init-pack-row done';
       row.querySelector('.init-pack-status').className = 'init-pack-status done';
       row.querySelector('.init-pack-status').textContent = `✓ ${ws.length} từ`;
-      console.log('[IDB] Saved:', pack.name, ws.length, 'words');
     } catch(e) {
-      console.warn('[IDB] Failed:', pack.name, e);
+      console.warn('[download] Failed:', pack.name, e);
       row.querySelector('.init-pack-status').textContent = '✕';
       row.style.opacity = '0.4';
     }
@@ -3570,16 +3534,37 @@ async function runInitialDownload() {
     labelEl.textContent = `${done} / ${needDownload.length} gói`;
   }
 
+  // 8. Lưu version mới vào IDB — lần sau sẽ dùng cache
+  await IDB.set('__appversion__', { version: remoteVersion, cachedAt: Date.now() }).catch(() => {});
   savePacks().catch(() => {});
 
   titleEl.textContent = '✓ Hoàn tất!';
-  subEl.textContent   = 'Từ nay mở app sẽ không cần tải lại.';
+  subEl.textContent   = localVersion ? 'Dữ liệu đã được cập nhật.' : 'Từ nay mở app sẽ không cần tải lại.';
   fillEl.style.background = 'linear-gradient(90deg,var(--neon-green),var(--neon-cyan))';
 
-  await new Promise(r => setTimeout(r, 1000));
+  await new Promise(r => setTimeout(r, 900));
   overlay.classList.remove('show');
   showPacksScreen();
 }
+
+// Load metadata từ IDB cache (không cần Firebase)
+async function _loadMetaFromCache() {
+  try {
+    const cachedKeys = await IDB.getAllKeys();
+    const cachedSet = new Set(cachedKeys);
+    for (const p of packs) {
+      if (cachedSet.has(p.id)) {
+        const cached = await IDB.get(p.id).catch(() => null);
+        if (cached?.words) {
+          p._wordCount     = cached.words.length;
+          p._masteredCount = cached.words.filter(w => w.mastered).length;
+        }
+      }
+    }
+  } catch(e) {}
+}
+
+
 
 // Save study time when user leaves or hides the page
 document.addEventListener('visibilitychange', () => { if (document.hidden) statsStopSession(); });
@@ -3591,48 +3576,87 @@ async function handleAuthChange(user) {
     const userRef = window._doc(window._db, 'users', user.uid);
     const isAdminUser = user.email === window.ADMIN_EMAIL;
 
-    // Đọc trạng thái hiện tại từ Firestore
-    const snap = await window._getDoc(userRef).catch(()=>null);
-    const existing = snap && snap.exists() ? snap.data() : null;
+    // ── Offline-first: đọc accessStatus từ IDB cache trước ──
+    const IDB_ACCESS_KEY = 'access::' + user.uid;
+    let cachedAccess = null;
+    try {
+      const c = await IDB.get(IDB_ACCESS_KEY);
+      cachedAccess = c?.accessStatus || null;
+    } catch(e) {}
 
-    if (!existing) {
-      // User mới — tạo document với accessStatus = 'pending' (hoặc 'approved' nếu là admin)
-      await window._setDoc(userRef, {
-        email: user.email,
-        displayName: user.displayName || '',
-        photoURL: user.photoURL || '',
-        isAdmin: isAdminUser,
-        accessStatus: isAdminUser ? 'approved' : 'pending',
-        lastSeen: Date.now()
-      }).catch(()=>{});
-    } else {
-      // User đã tồn tại — CHỈ cập nhật thông tin profile, KHÔNG đụng vào accessStatus
-      await window._setDoc(userRef, {
-        email: user.email,
-        displayName: user.displayName || '',
-        photoURL: user.photoURL || '',
-        isAdmin: isAdminUser,
-        lastSeen: Date.now()
-      }, { merge: true }).catch(()=>{});
+    // Nếu offline và có cache → vào app luôn, không chờ Firebase
+    if (!navigator.onLine && cachedAccess) {
+      console.log('[offline] Using cached access:', cachedAccess);
+      if (cachedAccess === 'approved' || isAdminUser) {
+        document.getElementById('loginOverlay').classList.remove('show');
+        document.getElementById('accessDeniedOverlay').classList.remove('show');
+        initApp();
+      } else if (cachedAccess === 'denied') {
+        showAccessDenied(user);
+      } else {
+        showAccessPending(user);
+      }
+      return;
     }
 
-    // Đọc lại accessStatus sau khi ghi xong
-    const currentSnap = await window._getDoc(userRef).catch(()=>null);
-    const access = isAdminUser
-      ? 'approved'
-      : (currentSnap && currentSnap.exists() ? currentSnap.data().accessStatus : 'pending') || 'pending';
+    // Online: đọc/ghi Firestore bình thường
+    try {
+      const snap = await window._getDoc(userRef).catch(()=>null);
+      const existing = snap && snap.exists() ? snap.data() : null;
 
-    if (access === 'approved') {
-      document.getElementById('loginOverlay').classList.remove('show');
-      document.getElementById('accessDeniedOverlay').classList.remove('show');
-      initApp();
-    } else if (access === 'denied') {
-      showAccessDenied(user);
-    } else {
-      showAccessPending(user);
+      if (!existing) {
+        await window._setDoc(userRef, {
+          email: user.email,
+          displayName: user.displayName || '',
+          photoURL: user.photoURL || '',
+          isAdmin: isAdminUser,
+          accessStatus: isAdminUser ? 'approved' : 'pending',
+          lastSeen: Date.now()
+        }).catch(()=>{});
+      } else {
+        await window._setDoc(userRef, {
+          email: user.email,
+          displayName: user.displayName || '',
+          photoURL: user.photoURL || '',
+          isAdmin: isAdminUser,
+          lastSeen: Date.now()
+        }, { merge: true }).catch(()=>{});
+      }
+
+      const currentSnap = await window._getDoc(userRef).catch(()=>null);
+      const access = isAdminUser
+        ? 'approved'
+        : (currentSnap && currentSnap.exists() ? currentSnap.data().accessStatus : 'pending') || 'pending';
+
+      // Lưu accessStatus vào IDB để dùng offline lần sau
+      await IDB.set(IDB_ACCESS_KEY, { accessStatus: access, email: user.email }).catch(()=>{});
+
+      if (access === 'approved') {
+        document.getElementById('loginOverlay').classList.remove('show');
+        document.getElementById('accessDeniedOverlay').classList.remove('show');
+        initApp();
+      } else if (access === 'denied') {
+        showAccessDenied(user);
+      } else {
+        showAccessPending(user);
+      }
+    } catch(e) {
+      // Firebase lỗi nhưng có cache → dùng cache
+      if (cachedAccess) {
+        console.warn('[auth] Firebase error, using cached access:', cachedAccess);
+        if (cachedAccess === 'approved' || isAdminUser) {
+          document.getElementById('loginOverlay').classList.remove('show');
+          document.getElementById('accessDeniedOverlay').classList.remove('show');
+          initApp();
+        } else {
+          showAccessPending(user);
+        }
+      } else {
+        // Không có cache, không có mạng → hiện thông báo
+        showToast('error', '⚠ Không có mạng. Vui lòng kết nối lần đầu để xác thực.');
+      }
     }
   } else {
-    // Đã đăng xuất → hiện login
     document.getElementById('accessDeniedOverlay').classList.remove('show');
     document.getElementById('loginOverlay').classList.add('show');
     const msgEl = document.getElementById('loginStatusMsg');
@@ -3649,6 +3673,104 @@ window.addEventListener('firebase-ready', () => {
 window.addEventListener('auth-changed', () => {
   handleAuthChange(window._currentUser);
 });
+
+// ── Service Worker — PWA offline hoàn chỉnh ──
+if ('serviceWorker' in navigator) {
+  const swCode = `
+const CACHE = 'lexon-v3';
+
+// Tất cả assets cần cache để app chạy offline
+const PRECACHE = [
+  'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js',
+  'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js',
+  'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+  'https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap',
+];
+
+self.addEventListener('install', e => {
+  e.waitUntil(
+    caches.open(CACHE).then(c => {
+      // Cache từng URL riêng, ignore lỗi từng cái
+      return Promise.allSettled(PRECACHE.map(url =>
+        c.add(new Request(url, { mode: 'cors' })).catch(() => {})
+      ));
+    }).then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', e => {
+  const url = e.request.url;
+  if (e.request.method !== 'GET') return;
+
+  // Firebase Firestore/Auth API calls — KHÔNG cache, để Firestore tự xử lý offline
+  if (url.includes('firestore.googleapis.com') ||
+      url.includes('identitytoolkit.googleapis.com') ||
+      url.includes('securetoken.googleapis.com')) return;
+
+  // Tất cả requests khác: cache-first
+  e.respondWith(
+    caches.match(e.request).then(cached => {
+      if (cached) {
+        // Có cache → trả ngay, fetch mới về ngầm
+        fetch(e.request).then(res => {
+          if (res && res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
+        }).catch(() => {});
+        return cached;
+      }
+      // Chưa cache → fetch và lưu lại
+      return fetch(e.request).then(res => {
+        if (res && res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
+        return res;
+      }).catch(() => new Response('', { status: 503 }));
+    })
+  );
+});
+  `;
+
+  const blob = new Blob([swCode], { type: 'application/javascript' });
+  const swUrl = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl)
+    .then(reg => {
+      // Cache chính file HTML này ngay sau khi SW register thành công
+      reg.active?.postMessage({ type: 'CACHE_HTML', url: location.href });
+      caches.open('lexon-v3').then(c => c.add(location.href).catch(() => {}));
+      console.log('[SW] Registered, app cached for offline');
+    })
+    .catch(() => {});
+}
+
+// ── Offline/online banner ──
+function _showOfflineBanner(show) {
+  let el = document.getElementById('offlineBanner');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'offlineBanner';
+    el.style.cssText = `
+      position:fixed; top:0; left:0; right:0; z-index:9999;
+      background:rgba(255,140,0,0.92); backdrop-filter:blur(8px);
+      color:#000; text-align:center; font-family:Syne,sans-serif;
+      font-size:0.75rem; font-weight:700; letter-spacing:0.08em;
+      padding:8px 16px; transform:translateY(-100%);
+      transition:transform 0.3s ease;
+    `;
+    el.textContent = '⚡ OFFLINE — Đang dùng dữ liệu đã lưu';
+    document.body.appendChild(el);
+  }
+  el.style.transform = show ? 'translateY(0)' : 'translateY(-100%)';
+}
+
+window.addEventListener('online',  () => _showOfflineBanner(false));
+window.addEventListener('offline', () => _showOfflineBanner(true));
+if (!navigator.onLine) _showOfflineBanner(true);
 </script>
 </body>
 </html>
