@@ -1760,22 +1760,26 @@ async function renderPacksGrid() {
   } else {
     // ── USER: thấy pack của admin (published) + pack riêng ──
 
-    // Pack của admin — load từ IDB cache
-    loadAdminPacks().then(adminPacks => {
+    // Pack của admin — load từ IDB cache, đọc progress thực
+    loadAdminPacks().then(async adminPacks => {
       if (!adminPacks.length) return;
-      // Section label
       const label = document.createElement('div');
       label.className = 'shared-section-label';
       label.style.cssText = 'grid-column:1/-1';
       label.innerHTML = '⬡ Giáo trình';
       grid.insertBefore(label, grid.firstChild);
 
-      adminPacks.forEach((pack, i) => {
-        const cached = pack._cached || {};
-        const total = cached.words?.length ?? (pack.wordCount || 0);
-        const prog = cached._progress || {};
-        const mastered = cached.words ? cached.words.filter(w => prog[w.word]).length : 0;
-        const pct = total ? Math.round(mastered / total * 100) : 0;
+      for (let i = 0; i < adminPacks.length; i++) {
+        const pack = adminPacks[i];
+        // Đọc IDB để lấy words + progress thực tế của user
+        let idbData = null;
+        try { idbData = await IDB.get('ap::' + pack.id); } catch(e) {}
+
+        const total    = idbData?.words?.length ?? (pack.wordCount || 0);
+        const prog     = idbData?._progress || {};
+        const mastered = idbData?.words ? idbData.words.filter(w => prog[w.word]).length : 0;
+        const pct      = total ? Math.round(mastered / total * 100) : 0;
+
         const card = document.createElement('div');
         card.className = 'pack-card shared-pack-card';
         card.innerHTML = `
@@ -1790,7 +1794,7 @@ async function renderPacksGrid() {
         `;
         card.addEventListener('click', () => openAdminPack(pack));
         grid.appendChild(card);
-      });
+      }
     }).catch(() => {});
 
     // Pack riêng của user
