@@ -60,8 +60,9 @@
 <!-- ===== INDEXEDDB OFFLINE CACHE ===== -->
 <script>
 const IDB = (() => {
-  const DB_NAME = 'lexon_cache_v1', STORE = 'packs';
+  const DB_NAME = 'lexon_cache_v2', STORE = 'packs';
   let _db = null;
+
   function open() {
     if (_db) return Promise.resolve(_db);
     return new Promise((res, rej) => {
@@ -71,30 +72,50 @@ const IDB = (() => {
       req.onerror   = e => rej(e.target.error);
     });
   }
+
+  // Tất cả key đều prefix bằng uid để tránh trộn cache giữa các user
+  function _key(id) {
+    const uid = (window._currentUser?.uid) || 'guest';
+    return uid + '::' + id;
+  }
+
   async function get(id) {
     const db = await open();
     return new Promise((res, rej) => {
-      const r = db.transaction(STORE,'readonly').objectStore(STORE).get(id);
+      const r = db.transaction(STORE,'readonly').objectStore(STORE).get(_key(id));
       r.onsuccess = e => res(e.target.result || null);
       r.onerror   = e => rej(e.target.error);
     });
   }
+
   async function set(id, data) {
     const db = await open();
+    const key = _key(id);
     return new Promise((res, rej) => {
-      const r = db.transaction(STORE,'readwrite').objectStore(STORE).put({ id, ...data, cachedAt: Date.now() });
+      const r = db.transaction(STORE,'readwrite').objectStore(STORE)
+        .put({ id: key, ...data, cachedAt: Date.now() });
       r.onsuccess = () => res(true);
       r.onerror   = e  => rej(e.target.error);
     });
   }
+
   async function getAllKeys() {
     const db = await open();
+    const uid = (window._currentUser?.uid) || 'guest';
+    const prefix = uid + '::';
     return new Promise((res, rej) => {
       const r = db.transaction(STORE,'readonly').objectStore(STORE).getAllKeys();
-      r.onsuccess = e => res(e.target.result || []);
-      r.onerror   = e => rej(e.target.error);
+      r.onsuccess = e => {
+        // Chỉ trả về keys của user hiện tại, bỏ prefix
+        const keys = (e.target.result || [])
+          .filter(k => k.startsWith(prefix))
+          .map(k => k.slice(prefix.length));
+        res(keys);
+      };
+      r.onerror = e => rej(e.target.error);
     });
   }
+
   return { get, set, getAllKeys };
 })();
 </script>
@@ -1562,29 +1583,39 @@ async function _syncPackListInBackground() {
 
 async function saveData() {
   if (!currentPack) return;
-  // Shared packs: lưu progress riêng theo user
+  const now = Date.now();
+
+  // Shared packs: chỉ lưu progress của user, không lưu words
   if (currentPack._isShared) {
     try {
-      const progRef = window._doc(window._db, 'users', getUID(), 'sharedProgress', currentPack.id);
       const prog = {};
       words.forEach(w => { if (w.mastered) prog[w.word] = true; });
-      await window._setDoc(progRef, { progress: prog, updatedAt: Date.now() }, { merge: true });
+      const progRef = window._doc(window._db, 'users', getUID(), 'sharedProgress', currentPack.id);
+      await window._setDoc(progRef, { progress: prog, updatedAt: now }, { merge: true });
+      // Cập nhật _progress trong IDB ngay — không cần đọc lại Firebase lần sau
+      const cached = await IDB.get(currentPack.id).catch(() => null);
+      if (cached) {
+        await IDB.set(currentPack.id, { ...cached, _progress: prog, _progressUpdatedAt: now }).catch(() => {});
+      }
       const badge = document.getElementById('cloudBadge');
       if (badge) { badge.textContent = '☁ Đã lưu tiến độ'; badge.style.color = 'var(--neon-green)'; }
-    } catch(e) {
-      console.warn('saveSharedProgress error:', e.message);
-    }
+    } catch(e) { console.warn('saveSharedProgress error:', e.message); }
     return;
   }
+
   try {
+    // Lưu Firebase với updatedAt
     await window._setDoc(packDoc(currentPack.id),
-      { words, name: currentPack.name, desc: currentPack.desc || '', updatedAt: Date.now() },
+      { words, name: currentPack.name, desc: currentPack.desc || '', updatedAt: now },
       { merge: true });
-    // Cập nhật IDB đồng thời (không await)
-    IDB.set(currentPack.id, { words }).catch(() => {});
+
+    // Lưu IDB với updatedAt — để background sync biết version
+    await IDB.set(currentPack.id, { words, updatedAt: now }).catch(() => {});
+
     // Cập nhật metadata cache
     const p = packs.find(x => x.id === currentPack.id);
     if (p) { p._wordCount = words.length; p._masteredCount = words.filter(w=>w.mastered).length; }
+
     const badge = document.getElementById('cloudBadge');
     if (badge) { badge.textContent = '☁ Đã lưu'; badge.style.color = 'var(--neon-green)'; }
   } catch(e) {
@@ -1595,54 +1626,91 @@ async function saveData() {
   }
 }
 
+// ── Background sync: kiểm tra Firebase có mới hơn IDB không ──
+async function _checkPackUpdate(packId, localUpdatedAt, isShared) {
+  try {
+    const ref = isShared
+      ? window._doc(window._db, 'sharedPacks', packId)
+      : packDoc(packId);
+    const snap = await window._getDoc(ref);
+    if (!snap.exists()) return;
+    const remoteTime = snap.data().updatedAt || 0;
+    if (remoteTime > (localUpdatedAt || 0)) {
+      // Firebase mới hơn → cập nhật IDB
+      const newWords = snap.data().words || [];
+      await IDB.set(packId, { words: newWords, updatedAt: remoteTime }).catch(() => {});
+      console.log('[sync] Pack updated from server:', packId, newWords.length, 'words');
+      // Nếu user đang mở pack này → cập nhật UI nhẹ nhàng
+      if (currentPack && currentPack.id === packId) {
+        const badge = document.getElementById('cloudBadge');
+        if (badge) { badge.textContent = '☁ Đã cập nhật'; badge.style.color = 'var(--neon-cyan)'; }
+      }
+    }
+  } catch(e) {}
+}
+
 async function loadData() {
   if (!currentPack) return false;
-  // Shared packs: thử IDB trước, fallback Firebase
+
+  // ── SHARED PACK: cache-first + background sync progress ──
   if (currentPack._isShared) {
-    console.log('[loadData] shared pack, checking IDB for', currentPack.id);
-    try {
-      const cached = await IDB.get(currentPack.id);
-      console.log('[loadData] IDB shared →', cached ? `${cached.words?.length} words` : 'NULL');
-      if (cached && cached.words?.length) {
-        const progSnap = await window._getDoc(window._doc(window._db, 'users', getUID(), 'sharedProgress', currentPack.id)).catch(()=>null);
-        const prog = progSnap?.exists() ? (progSnap.data().progress || {}) : {};
-        words = cached.words.map(w => ({ ...w, mastered: !!prog[w.word] }));
-        return true;
-      }
-    } catch(e) {}
-    console.log('[loadData] shared: IDB miss, loading from Firebase');
+    const cached = await IDB.get(currentPack.id).catch(() => null);
+
+    if (cached && cached.words?.length) {
+      // 1. Dùng cache ngay — progress đã lưu trong IDB
+      const prog = cached._progress || {};
+      words = cached.words.map(w => ({ ...w, mastered: !!prog[w.word] }));
+
+      // 2. Background check xem admin có cập nhật pack không
+      _checkPackUpdate(currentPack.id, cached.updatedAt, true);
+      return true;
+    }
+
+    // Cache miss → load Firebase lần đầu
     try {
       const packSnap = await window._getDoc(window._doc(window._db, 'sharedPacks', currentPack.id));
       if (!packSnap.exists()) return false;
-      const packWords = packSnap.data().words || [];
-      await IDB.set(currentPack.id, { words: packWords }).catch(()=>{});
-      const progSnap = await window._getDoc(window._doc(window._db, 'users', getUID(), 'sharedProgress', currentPack.id)).catch(()=>null);
+      const data = packSnap.data();
+      const packWords = data.words || [];
+      const progSnap = await window._getDoc(
+        window._doc(window._db, 'users', getUID(), 'sharedProgress', currentPack.id)
+      ).catch(() => null);
       const prog = progSnap?.exists() ? (progSnap.data().progress || {}) : {};
+      // Lưu cả words + progress vào IDB
+      await IDB.set(currentPack.id, {
+        words: packWords,
+        updatedAt: data.updatedAt || Date.now(),
+        _progress: prog
+      }).catch(() => {});
       words = packWords.map(w => ({ ...w, mastered: !!prog[w.word] }));
       return true;
     } catch(e) { console.warn('loadSharedData error:', e.message); return false; }
   }
-  // Thử đọc từ IndexedDB trước — không tốn Firebase read
-  try {
-    const cached = await IDB.get(currentPack.id);
-    console.log('[loadData] IDB.get', currentPack.id, '→', cached ? `${cached.words?.length} words` : 'NULL');
-    if (cached && cached.words?.length) {
-      words = cached.words;
-      const p = packs.find(x => x.id === currentPack.id);
-      if (p) { p._wordCount = words.length; p._masteredCount = words.filter(w=>w.mastered).length; }
-      const badge = document.getElementById('cloudBadge');
-      if (badge) { badge.innerHTML = '📦 <span style="color:var(--neon-green)">Local</span>'; badge.style.color='rgba(57,255,20,0.5)'; }
-      return true;
-    }
-  } catch(e) { console.warn('[loadData] IDB read error:', e); }
-  // Fallback: đọc từ Firebase
-  console.log('[loadData] Falling back to Firebase for', currentPack.id);
+
+  // ── OWN PACK: cache-first + background sync ──
+  const cached = await IDB.get(currentPack.id).catch(() => null);
+
+  if (cached && cached.words?.length) {
+    // 1. Dùng cache ngay — 0 Firebase reads
+    words = cached.words;
+    const p = packs.find(x => x.id === currentPack.id);
+    if (p) { p._wordCount = words.length; p._masteredCount = words.filter(w=>w.mastered).length; }
+    const badge = document.getElementById('cloudBadge');
+    if (badge) { badge.innerHTML = '📦 <span style="color:var(--neon-green)">Local</span>'; badge.style.color='rgba(57,255,20,0.5)'; }
+
+    // 2. Background check — chỉ đọc Firebase nếu có thay đổi từ thiết bị khác
+    _checkPackUpdate(currentPack.id, cached.updatedAt, false);
+    return true;
+  }
+
+  // Cache miss → load Firebase lần đầu
   try {
     const snap = await window._getDoc(packDoc(currentPack.id));
     if (snap.exists() && snap.data().words?.length) {
-      words = snap.data().words;
-      IDB.set(currentPack.id, { words }).catch(() => {});
-      console.log('[loadData] Saved to IDB:', currentPack.id, words.length, 'words');
+      const data = snap.data();
+      words = data.words;
+      // Lưu kèm updatedAt để lần sau so sánh được
+      await IDB.set(currentPack.id, { words, updatedAt: data.updatedAt || Date.now() }).catch(() => {});
       return true;
     }
   } catch(e) { console.warn('loadData error:', e.message); }
@@ -2885,7 +2953,7 @@ async function _fetchSharedPacksFromFirebase() {
       result.push({ ...data, id: d.id, _userProgress: userProgress });
     }
     _cachedSharedPacks = result;
-    IDB.set('__sharedpacks__', { packs: result }).catch(() => {});
+    IDB.set('__sharedpacks__', { packs: result, updatedAt: Date.now() }).catch(() => {});
     return result;
   } catch(e) { console.warn('loadVisibleSharedPacks error:', e); return []; }
 }
@@ -3477,7 +3545,7 @@ async function runInitialDownload() {
         if (snap.exists()) ws = snap.data().words || [];
       }
 
-      await IDB.set(pack.id, { words: ws });
+      await IDB.set(pack.id, { words: ws, updatedAt: Date.now() });
 
       if (!isShared) {
         const orig = packs.find(x => x.id === pack.id);
