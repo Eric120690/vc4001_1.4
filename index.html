@@ -3680,76 +3680,9 @@ window.addEventListener('auth-changed', () => {
 
 // ── Service Worker — PWA offline hoàn chỉnh ──
 if ('serviceWorker' in navigator) {
-  const swCode = `
-const CACHE = 'lexon-v3';
-
-// Tất cả assets cần cache để app chạy offline
-const PRECACHE = [
-  'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js',
-  'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js',
-  'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
-  'https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap',
-];
-
-self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE).then(c => {
-      // Cache từng URL riêng, ignore lỗi từng cái
-      return Promise.allSettled(PRECACHE.map(url =>
-        c.add(new Request(url, { mode: 'cors' })).catch(() => {})
-      ));
-    }).then(() => self.skipWaiting())
-  );
-});
-
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
-      .then(() => self.clients.claim())
-  );
-});
-
-self.addEventListener('fetch', e => {
-  const url = e.request.url;
-  if (e.request.method !== 'GET') return;
-
-  // Firebase Firestore/Auth API calls — KHÔNG cache, để Firestore tự xử lý offline
-  if (url.includes('firestore.googleapis.com') ||
-      url.includes('identitytoolkit.googleapis.com') ||
-      url.includes('securetoken.googleapis.com')) return;
-
-  // Tất cả requests khác: cache-first
-  e.respondWith(
-    caches.match(e.request).then(cached => {
-      if (cached) {
-        // Có cache → trả ngay, fetch mới về ngầm
-        fetch(e.request).then(res => {
-          if (res && res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
-        }).catch(() => {});
-        return cached;
-      }
-      // Chưa cache → fetch và lưu lại
-      return fetch(e.request).then(res => {
-        if (res && res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
-        return res;
-      }).catch(() => new Response('', { status: 503 }));
-    })
-  );
-});
-  `;
-
-  const blob = new Blob([swCode], { type: 'application/javascript' });
-  const swUrl = URL.createObjectURL(blob);
-  navigator.serviceWorker.register(swUrl)
-    .then(reg => {
-      // Cache chính file HTML này ngay sau khi SW register thành công
-      reg.active?.postMessage({ type: 'CACHE_HTML', url: location.href });
-      caches.open('lexon-v3').then(c => c.add(location.href).catch(() => {}));
-      console.log('[SW] Registered, app cached for offline');
-    })
-    .catch(() => {});
+  navigator.serviceWorker.register('./sw.js')
+    .then(() => console.log('[SW] Registered'))
+    .catch(e => console.warn('[SW] Failed:', e));
 }
 
 // ── Offline/online banner ──
