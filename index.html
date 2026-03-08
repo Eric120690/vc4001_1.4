@@ -1958,6 +1958,7 @@ function processExcelFile(file) {
         phonetics:   ['phonetics','phonetic','phiên âm','phien am'],
         description: ['description','descrition','mô tả','mo ta','desc'],
         example:     ['example','ví dụ','vi du'],
+        example_vi:  ['example vi','ví dụ vi','vi du vi','example_vi','ví dụ tiếng việt','vi du tieng viet'],
         type:        ['type','loại từ','loai tu'],
         level:       ['level','cấp độ','cap do'],
       };
@@ -1981,6 +1982,7 @@ function processExcelFile(file) {
           phonetics:   getCol(row, COL.phonetics),
           description: getCol(row, COL.description),
           example:     getCol(row, COL.example),
+          example_vi:  getCol(row, COL.example_vi),
           type:        getCol(row, COL.type),
           level:       getCol(row, COL.level),
           mastered:    false,
@@ -2234,7 +2236,11 @@ function renderFlashcard() {
               <button class="fc-speak-btn fc-speak-uk" id="btnUK2" onclick="speakWord('${c.word.replace(/'/g,"\\'")}','en-GB','btnUK2')">🔊 UK</button>
             </div>
           `}
-          ${c.example?`<div class="fc-example" style="margin-top:6px" onclick="event.stopPropagation()">🗣 ${h(c.example)}</div>`:''}
+          ${reversedMode
+            ? (c.example    ? `<div class="fc-example" style="margin-top:6px" onclick="event.stopPropagation()">🗣 ${h(c.example)}</div>` : '')
+            : (c.example_vi ? `<div class="fc-example" style="margin-top:6px" onclick="event.stopPropagation()">🗣 ${h(c.example_vi)}</div>`
+               : c.example  ? `<div class="fc-example" style="margin-top:6px" onclick="event.stopPropagation()">🗣 ${h(c.example)}</div>` : '')
+          }
         </div>
       </div>
     </div>
