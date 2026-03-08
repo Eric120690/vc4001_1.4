@@ -729,6 +729,17 @@ const IDB = (() => {
   .pack-card.pinned::before { opacity:1; background:linear-gradient(90deg,var(--neon-yellow),var(--neon-pink)); }
   .pack-pin-badge { position:absolute; top:9px; left:10px; font-size:0.7rem; line-height:1; pointer-events:none; }
   .pack-action-btn.pin:hover { background:rgba(255,230,0,0.2); color:var(--neon-yellow); }
+  /* Nút pin luôn hiển thị ở góc dưới phải card */
+  .btn-pin-always {
+    display:inline-flex; align-items:center; gap:4px;
+    margin-top:10px; width:100%;
+    padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.08);
+    background:rgba(255,255,255,0.03); color:rgba(255,255,255,0.3);
+    font-size:0.65rem; font-family:'Space Mono',monospace; letter-spacing:0.05em;
+    cursor:pointer; transition:all 0.18s; text-align:left;
+  }
+  .btn-pin-always:hover { border-color:rgba(255,230,0,0.4); color:var(--neon-yellow); background:rgba(255,230,0,0.07); }
+  .btn-pin-always.is-pinned { border-color:rgba(255,230,0,0.4); color:var(--neon-yellow); background:rgba(255,230,0,0.07); }
   /* ── LEVEL FILTER (flashcard) ── */
   .level-filter-wrap { display:flex; align-items:center; gap:6px; }
   .level-filter-label { font-size:0.62rem; color:rgba(255,255,255,0.3); letter-spacing:0.15em; text-transform:uppercase; white-space:nowrap; }
@@ -1780,9 +1791,7 @@ async function renderPacksGrid() {
       const card = document.createElement('div');
       card.className = 'pack-card' + (isPinned?' pinned':'');
       card.innerHTML = `
-        ${isPinned?'<div class="pack-pin-badge">📌</div>':''}
         <div class="pack-actions">
-          <button class="pack-action-btn pin" onclick="togglePin('${pack.id}',event)" title="${isPinned?'Bỏ ghim':'Ghim lên đầu'}">${isPinned?'📌':'📍'}</button>
           <button class="pack-action-btn edit" onclick="editPack('${pack.id}',event)">✎</button>
           <button class="pack-action-btn" onclick="deletePack('${pack.id}',event)">✕</button>
         </div>
@@ -1794,9 +1803,12 @@ async function renderPacksGrid() {
         <button class="btn-publish ${isPublished?'published':''}" onclick="togglePublish('${pack.id}',event)">
           ${isPublished ? '🌐 Đang public · Bấm để ẩn' : '📤 Publish cho học viên'}
         </button>
+        <button class="btn-pin-always ${isPinned?'is-pinned':''}" onclick="togglePin('${pack.id}',event)">
+          ${isPinned ? '📌 Đã ghim · Bấm để bỏ ghim' : '📍 Ghim lên đầu'}
+        </button>
       `;
       card.addEventListener('click', (e) => {
-        if (e.target.closest('.pack-actions') || e.target.closest('.btn-publish')) return;
+        if (e.target.closest('.pack-actions') || e.target.closest('.btn-publish') || e.target.closest('.btn-pin-always')) return;
         openPack(pack);
       });
       grid.appendChild(card);
@@ -1865,9 +1877,7 @@ async function renderPacksGrid() {
       const card = document.createElement('div');
       card.className = 'pack-card' + (isPinned?' pinned':'');
       card.innerHTML = `
-        ${isPinned?'<div class="pack-pin-badge">📌</div>':''}
         <div class="pack-actions">
-          <button class="pack-action-btn pin" onclick="togglePin('${pack.id}',event)" title="${isPinned?'Bỏ ghim':'Ghim lên đầu'}">${isPinned?'📌':'📍'}</button>
           <button class="pack-action-btn edit" onclick="editPack('${pack.id}',event)">✎</button>
           <button class="pack-action-btn" onclick="deletePack('${pack.id}',event)">✕</button>
         </div>
@@ -1876,8 +1886,14 @@ async function renderPacksGrid() {
         <div class="pack-meta">${pack.desc ? h(pack.desc)+'<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
         <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%"></div></div>
         <div class="pack-progress-label">${pct}% hoàn thành</div>
+        <button class="btn-pin-always ${isPinned?'is-pinned':''}" onclick="togglePin('${pack.id}',event)">
+          ${isPinned ? '📌 Đã ghim · Bấm để bỏ ghim' : '📍 Ghim lên đầu'}
+        </button>
       `;
-      card.addEventListener('click', () => openPack(pack));
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.pack-actions') || e.target.closest('.btn-pin-always')) return;
+        openPack(pack);
+      });
       grid.appendChild(card);
     });
   }
@@ -2231,7 +2247,37 @@ function renderFlashcard() {
   }
   if (!studyQueue.length||currentIndex>=studyQueue.length) buildQueue();
   if (!studyQueue.length) {
-    el.innerHTML=`<div class="warn-box">⚠ Không có từ nào trong level này. Hãy chọn level khác.</div>`;
+    const levelOpts = [
+      `<option value="all" ${fcLevelFilter==='all'?'selected':''}>Tất cả</option>`,
+      ...[...new Set(words.filter(w=>w.level&&w.level.trim()).map(w=>w.level.trim()))].sort()
+        .map(lv=>`<option value="${h(lv)}" ${fcLevelFilter===lv?'selected':''}>${h(lv)}</option>`),
+      ...(words.some(w=>!w.level||!w.level.trim())?[`<option value="__none__" ${fcLevelFilter==='__none__'?'selected':''}>Chưa phân level</option>`]:[])
+    ].join('');
+    el.innerHTML = `
+      <div class="fc-controls" style="margin-bottom:20px">
+        <div class="autoplay-toggle">
+          <label class="toggle-switch">
+            <input type="checkbox" id="autoPlayToggle" ${autoPlay?'checked':''} onchange="autoPlay=this.checked">
+            <span class="toggle-track"></span>
+          </label>
+          <span class="toggle-label">Tự đọc</span>
+        </div>
+        <div class="autoplay-toggle">
+          <label class="toggle-switch">
+            <input type="checkbox" id="reversedToggle" ${reversedMode?'checked':''} onchange="reversedMode=this.checked;isFlipped=false;renderFlashcard()">
+            <span class="toggle-track"></span>
+          </label>
+          <span class="toggle-label">🔄 Đảo ngược</span>
+        </div>
+        <div class="level-filter-wrap">
+          <span class="level-filter-label">📚 Level</span>
+          <select class="level-filter-select" onchange="fcLevelFilter=this.value;buildQueue();renderFlashcard()">${levelOpts}</select>
+        </div>
+      </div>
+      <div class="warn-box" style="justify-content:center;flex-direction:column;gap:10px;text-align:center">
+        <div>🎉 Đã thuộc hết từ ở level này!</div>
+        <div style="font-size:0.75rem;opacity:0.7">Chọn level khác ở trên để tiếp tục học</div>
+      </div>`;
     return;
   }
   const c = studyQueue[currentIndex];
