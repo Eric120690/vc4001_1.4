@@ -724,6 +724,42 @@ const IDB = (() => {
   .pack-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg,var(--neon-cyan),var(--neon-purple)); opacity:0; transition:opacity 0.25s; }
   .pack-card:hover { border-color:rgba(0,245,255,0.3); transform:translateY(-3px); background:rgba(255,255,255,0.06); }
   .pack-card:hover::before { opacity:1; }
+  /* ── PIN ── */
+  .pack-card.pinned { border-color:rgba(255,230,0,0.45); }
+  .pack-card.pinned::before { opacity:1; background:linear-gradient(90deg,var(--neon-yellow),var(--neon-pink)); }
+  .pack-pin-badge { position:absolute; top:9px; left:10px; font-size:0.7rem; line-height:1; pointer-events:none; }
+  .pack-action-btn.pin:hover { background:rgba(255,230,0,0.2); color:var(--neon-yellow); }
+  /* ── LEVEL FILTER (flashcard) ── */
+  .level-filter-wrap { display:flex; align-items:center; gap:6px; }
+  .level-filter-label { font-size:0.62rem; color:rgba(255,255,255,0.3); letter-spacing:0.15em; text-transform:uppercase; white-space:nowrap; }
+  .level-filter-select {
+    background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.14);
+    border-radius:20px; color:#fff; font-family:'Space Mono',monospace;
+    font-size:0.68rem; padding:5px 26px 5px 12px; cursor:pointer; outline:none;
+    transition:border-color 0.2s; -webkit-appearance:none; appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.3)'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 9px center;
+  }
+  .level-filter-select:focus { border-color:rgba(0,245,255,0.4); }
+  .level-filter-select option { background:#0d0d1f; }
+  /* ── HIDE WORD ── */
+  .btn-hide-word {
+    background:none; border:none; color:rgba(255,255,255,0.2); cursor:pointer;
+    font-size:0.82rem; padding:2px 5px; transition:color 0.15s,transform 0.15s; line-height:1;
+  }
+  .btn-hide-word:hover { color:rgba(255,180,0,0.7); transform:scale(1.15); }
+  tr.hidden-word { opacity:0.28; }
+  tr.hidden-word .td-word { text-decoration:line-through; }
+  .btn-hide-word.is-hidden { color:rgba(255,180,0,0.55); }
+  /* ── COPY BTN ── */
+  .btn-copy-words {
+    display:inline-flex; align-items:center; gap:6px; padding:5px 13px;
+    background:rgba(0,245,255,0.07); border:1px solid rgba(0,245,255,0.2);
+    border-radius:20px; color:var(--neon-cyan); font-size:0.68rem;
+    font-family:'Space Mono',monospace; cursor:pointer; transition:all 0.18s;
+  }
+  .btn-copy-words:hover { background:rgba(0,245,255,0.15); border-color:rgba(0,245,255,0.4); }
+  .btn-copy-words.copied { border-color:rgba(57,255,20,0.5); color:var(--neon-green); background:rgba(57,255,20,0.08); }
   .pack-icon { font-size:1.8rem; margin-bottom:10px; }
   .pack-name { font-family:'Syne',sans-serif; font-size:0.95rem; font-weight:700; color:#fff; margin-bottom:6px; }
   .pack-meta { font-size:0.72rem; color:rgba(255,255,255,0.35); margin-bottom:12px; line-height:1.6; }
@@ -1394,15 +1430,19 @@ serendipity - tình cờ may mắn - (n) - It was pure serendipity."></textarea>
     <div class="card">
       <div class="list-toolbar">
         <div class="section-label" style="margin-bottom:0">Danh sách từ vựng</div>
-        <div class="word-count">
-          <strong id="totalCount">0</strong> từ &nbsp;|&nbsp;
-          <strong id="masteredCount" style="color:var(--neon-green)">0</strong> đã thuộc
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <button class="btn-copy-words" id="btnCopyWords" onclick="copyLearningWords()">⎘ Copy từ đang học</button>
+          <div class="word-count">
+            <strong id="totalCount">0</strong> từ &nbsp;|&nbsp;
+            <strong id="masteredCount" style="color:var(--neon-green)">0</strong> đã thuộc
+          </div>
         </div>
       </div>
       <div class="filter-row">
         <button class="filter-btn active" onclick="setFilter('all',this)">Tất cả</button>
         <button class="filter-btn" onclick="setFilter('learning',this)">Đang học</button>
         <button class="filter-btn" onclick="setFilter('mastered',this)">Đã thuộc</button>
+        <button class="filter-btn" onclick="setFilter('hidden',this)">🚫 Đã ẩn</button>
       </div>
       <div class="word-table-wrap">
         <table class="word-table">
@@ -1413,6 +1453,7 @@ serendipity - tình cờ may mắn - (n) - It was pure serendipity."></textarea>
               <th>Nghĩa</th>
               <th style="width:55px">Level</th>
               <th style="width:36px">✓</th>
+              <th style="width:28px" title="Ẩn/hiện">👁</th>
               <th style="width:34px"></th>
             </tr>
           </thead>
@@ -1720,6 +1761,7 @@ async function renderPacksGrid() {
   const grid = document.getElementById('packsGrid');
   grid.innerHTML = '';
   const icons = ['📘','📗','📙','📕','📒','📓','📔','📑'];
+  packs.sort((a,b) => (b.pinned?1:0) - (a.pinned?1:0));
 
   if (isAdmin()) {
     // ── ADMIN: chỉ thấy pack của mình, có nút publish ──
@@ -1734,10 +1776,13 @@ async function renderPacksGrid() {
       const mastered = pack._masteredCount ?? 0;
       const pct = total ? Math.round(mastered / total * 100) : 0;
       const isPublished = !!pack.published;
+      const isPinned = !!pack.pinned;
       const card = document.createElement('div');
-      card.className = 'pack-card';
+      card.className = 'pack-card' + (isPinned?' pinned':'');
       card.innerHTML = `
+        ${isPinned?'<div class="pack-pin-badge">📌</div>':''}
         <div class="pack-actions">
+          <button class="pack-action-btn pin" onclick="togglePin('${pack.id}',event)" title="${isPinned?'Bỏ ghim':'Ghim lên đầu'}">${isPinned?'📌':'📍'}</button>
           <button class="pack-action-btn edit" onclick="editPack('${pack.id}',event)">✎</button>
           <button class="pack-action-btn" onclick="deletePack('${pack.id}',event)">✕</button>
         </div>
@@ -1816,10 +1861,13 @@ async function renderPacksGrid() {
       const total    = pack._wordCount     ?? 0;
       const mastered = pack._masteredCount ?? 0;
       const pct = total ? Math.round(mastered / total * 100) : 0;
+      const isPinned = !!pack.pinned;
       const card = document.createElement('div');
-      card.className = 'pack-card';
+      card.className = 'pack-card' + (isPinned?' pinned':'');
       card.innerHTML = `
+        ${isPinned?'<div class="pack-pin-badge">📌</div>':''}
         <div class="pack-actions">
+          <button class="pack-action-btn pin" onclick="togglePin('${pack.id}',event)" title="${isPinned?'Bỏ ghim':'Ghim lên đầu'}">${isPinned?'📌':'📍'}</button>
           <button class="pack-action-btn edit" onclick="editPack('${pack.id}',event)">✎</button>
           <button class="pack-action-btn" onclick="deletePack('${pack.id}',event)">✕</button>
         </div>
@@ -1896,6 +1944,16 @@ async function savePackModal() {
   showToast('success', '✓ Đã lưu!');
 }
 function editPack(id, e) { e.stopPropagation(); openPackModal(id); }
+
+async function togglePin(id, e) {
+  e.stopPropagation();
+  const p = packs.find(p => p.id === id);
+  if (!p) return;
+  p.pinned = !p.pinned;
+  await savePacks();
+  renderPacksGrid();
+  showToast('success', p.pinned ? '📌 Đã ghim lên đầu' : '📍 Đã bỏ ghim');
+}
 async function deletePack(id, e) {
   e.stopPropagation();
   const p = packs.find(p => p.id === id);
@@ -2064,6 +2122,7 @@ function clearAllData() {
 
 let autoPlay = true;   // auto-speak when flashcard loads
 let reversedMode = false; // show Vietnamese first
+let fcLevelFilter = 'all'; // level filter for flashcard queue
 
 // ============================================================
 //  TEXT-TO-SPEECH ENGINE
@@ -2149,7 +2208,12 @@ function autoSpeakCurrent() {
 //  QUEUE
 // ============================================================
 function buildQueue() {
-  studyQueue = words.filter(w=>!w.mastered).map(w=>({...w}));
+  let pool = words.filter(w => !w.mastered && !w.hidden);
+  if (fcLevelFilter !== 'all') {
+    if (fcLevelFilter === '__none__') pool = pool.filter(w => !w.level || !w.level.trim());
+    else pool = pool.filter(w => (w.level||'').trim().toLowerCase() === fcLevelFilter.toLowerCase());
+  }
+  studyQueue = pool.map(w=>({...w}));
   for (let i=studyQueue.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [studyQueue[i],studyQueue[j]]=[studyQueue[j],studyQueue[i]]; }
   currentIndex=0; isFlipped=false; correctStreak=0;
 }
@@ -2160,19 +2224,24 @@ function buildQueue() {
 function renderFlashcard() {
   const el = document.getElementById('fc-content');
   if (!words.length) { el.innerHTML='<div class="warn-box">⚠ Chưa có từ vựng. Vào tab "Nhập Từ" để thêm!</div>'; return; }
-  const rem = words.filter(w=>!w.mastered);
+  const rem = words.filter(w=>!w.mastered && !w.hidden);
   if (!rem.length) {
     el.innerHTML=`<div class="card celebration"><span class="celebration-icon">🎉</span><h2>Xuất Sắc!</h2><p>Bạn đã thuộc hết <strong style="color:var(--neon-green)">${words.length}</strong> từ vựng!</p><button class="btn-restart" onclick="resetMastered()">↺ Học Lại</button></div>`;
     return;
   }
   if (!studyQueue.length||currentIndex>=studyQueue.length) buildQueue();
+  if (!studyQueue.length) {
+    el.innerHTML=`<div class="warn-box">⚠ Không có từ nào trong level này. Hãy chọn level khác.</div>`;
+    return;
+  }
   const c = studyQueue[currentIndex];
-  const m = words.filter(w=>w.mastered).length;
-  const prog = Math.round((m/words.length)*100);
+  const m = words.filter(w=>w.mastered && !w.hidden).length;
+  const total = words.filter(w=>!w.hidden).length;
+  const prog = total ? Math.round((m/total)*100) : 0;
 
   el.innerHTML = `
     <div class="stats-row">
-      <div class="stat-card"><div class="stat-value">${rem.length}</div><div class="stat-label">Còn lại</div></div>
+      <div class="stat-card"><div class="stat-value">${studyQueue.length - currentIndex}</div><div class="stat-label">Còn lại</div></div>
       <div class="stat-card"><div class="stat-value">${m}</div><div class="stat-label">Đã thuộc</div></div>
       <div class="stat-card"><div class="stat-value">${correctStreak}</div><div class="stat-label">Streak 🔥</div></div>
     </div>
@@ -2193,7 +2262,15 @@ function renderFlashcard() {
         </label>
         <span class="toggle-label">🔄 Đảo ngược</span>
       </div>
-      <div class="shuffle-badge">⇆ Ngẫu nhiên</div>
+      <div class="level-filter-wrap">
+        <span class="level-filter-label">📚 Level</span>
+        <select class="level-filter-select" onchange="fcLevelFilter=this.value;buildQueue();renderFlashcard()">
+          <option value="all" ${fcLevelFilter==='all'?'selected':''}>Tất cả</option>
+          ${[...new Set(words.filter(w=>w.level&&w.level.trim()).map(w=>w.level.trim()))].sort()
+            .map(lv=>`<option value="${h(lv)}" ${fcLevelFilter===lv?'selected':''}>${h(lv)}</option>`).join('')}
+          ${words.some(w=>!w.level||!w.level.trim())?`<option value="__none__" ${fcLevelFilter==='__none__'?'selected':''}>Chưa phân level</option>`:''}
+        </select>
+      </div>
     </div>
     <div class="fc-scene">
       <div class="flashcard" id="theCard" onclick="flipCard()">
@@ -2318,27 +2395,39 @@ function renderList() {
   const tbody=document.getElementById('wordTableBody');
   const emptyEl=document.getElementById('listEmpty');
   if(!tbody)return;
-  document.getElementById('totalCount').textContent=words.length;
-  document.getElementById('masteredCount').textContent=words.filter(w=>w.mastered).length;
-  let filtered=words;
-  if(listFilter==='mastered') filtered=words.filter(w=>w.mastered);
-  if(listFilter==='learning') filtered=words.filter(w=>!w.mastered);
+  const visible = words.filter(w=>!w.hidden);
+  document.getElementById('totalCount').textContent = visible.length;
+  document.getElementById('masteredCount').textContent = visible.filter(w=>w.mastered).length;
+
+  let filtered;
+  if(listFilter==='mastered')  filtered = words.filter(w=>w.mastered && !w.hidden);
+  else if(listFilter==='learning') filtered = words.filter(w=>!w.mastered && !w.hidden);
+  else if(listFilter==='hidden')   filtered = words.filter(w=>w.hidden);
+  else filtered = words; // 'all' = tất cả kể cả hidden (mờ đi)
+
   if(!filtered.length){tbody.innerHTML='';emptyEl.style.display='block';return;}
   emptyEl.style.display='none';
   tbody.innerHTML=filtered.map(w=>{
     const ri=words.indexOf(w);
     const lv=(w.level||'').trim().toLowerCase().replace(/\s/g,'');
-    return `<tr class="${w.mastered?'mastered-row':''}">
+    const hiddenStyle = w.hidden ? 'opacity:0.3;' : '';
+    const hideIcon = w.hidden ? '👁' : '🚫';
+    const hideTitle = w.hidden ? 'Hiện lại từ này' : 'Ẩn từ này khỏi danh sách học';
+    return `<tr style="${hiddenStyle}">
       <td style="color:rgba(255,255,255,0.2);font-size:0.7rem">${ri+1}</td>
       <td>
         <div style="display:flex;align-items:center;gap:7px">
-          <div><div class="td-word">${h(w.word)}</div>${w.phonetics?`<div class="td-phonetic">/${h(w.phonetics)}/</div>`:''}</div>
-          <button class="speak-btn" onclick="speakWord('${w.word.replace(/'/g,"\\'")}','en-US',null)" title="Phát âm US">🔊</button>
+          <div>
+            <div class="td-word" style="${w.hidden?'text-decoration:line-through;':''}">${h(w.word)}</div>
+            ${w.phonetics?`<div class="td-phonetic">/${h(w.phonetics)}/</div>`:''}
+          </div>
+          ${!w.hidden?`<button class="speak-btn" onclick="speakWord('${w.word.replace(/'/g,"\\'")}','en-US',null)" title="Phát âm US">🔊</button>`:''}
         </div>
       </td>
       <td class="td-meaning">${h(w.meaning)}${w.type?` <span style="color:rgba(255,255,255,0.3);font-size:0.7rem">${h(w.type)}</span>`:''}</td>
       <td style="text-align:center">${lv?`<span class="lv lv-${lv}">${h(w.level)}</span>`:''}</td>
       <td style="text-align:center">${w.mastered?'<span style="color:var(--neon-green)">✓</span>':'<span style="color:rgba(255,255,255,0.15)">·</span>'}</td>
+      <td style="text-align:center"><button class="btn-hide-word" onclick="toggleHideWord(${ri})" title="${hideTitle}">${hideIcon}</button></td>
       <td><button class="chip-remove" onclick="removeWord(${ri})">✕</button></td>
     </tr>`;
   }).join('');
@@ -2348,6 +2437,23 @@ function removeWord(idx) {
   const word=words[idx]?.word; if(!word)return;
   if(!confirm(`Xóa từ "${word}"?`))return;
   words.splice(idx,1); saveData(); buildQueue(); renderList(); updateStudyBadge();
+}
+
+function toggleHideWord(idx) {
+  if(!words[idx])return;
+  words[idx].hidden = !words[idx].hidden;
+  if(words[idx].hidden) words[idx].mastered = false; // reset mastered khi ẩn
+  saveData(); buildQueue(); renderList(); updateStudyBadge();
+}
+
+function copyLearningWords() {
+  const learning = words.filter(w => !w.mastered && !w.hidden).map(w => w.word);
+  if(!learning.length){ showToast('error','⚠ Không có từ nào đang học.'); return; }
+  navigator.clipboard.writeText(learning.join('\n')).then(() => {
+    const btn = document.getElementById('btnCopyWords');
+    if(btn){ btn.classList.add('copied'); btn.textContent='✓ Đã copy '+learning.length+' từ'; }
+    setTimeout(()=>{ if(btn){ btn.classList.remove('copied'); btn.innerHTML='⎘ Copy từ đang học'; } }, 2500);
+  }).catch(()=> showToast('error','✕ Không copy được, trình duyệt không hỗ trợ.'));
 }
 
 // ============================================================
