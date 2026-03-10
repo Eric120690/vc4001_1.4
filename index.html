@@ -269,6 +269,67 @@ const IDB = (() => {
     font-family: 'Space Mono', monospace;
   }
 
+  /* ── PIN TOGGLE SWITCH ── */
+  .pin-toggle-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .pin-toggle-label {
+    font-size: 0.58rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.25);
+    font-family: 'Space Mono', monospace;
+    user-select: none;
+    transition: color 0.2s;
+  }
+  .pin-toggle-wrap.active .pin-toggle-label {
+    color: rgba(255,230,0,0.75);
+  }
+  .pin-toggle {
+    position: relative;
+    width: 30px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+  .pin-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+  }
+  .pin-toggle-track {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
+  }
+  .pin-toggle-track::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    transition: transform 0.25s, background 0.25s;
+  }
+  .pin-toggle input:checked + .pin-toggle-track {
+    background: rgba(255,230,0,0.2);
+    border-color: rgba(255,230,0,0.55);
+    box-shadow: 0 0 8px rgba(255,230,0,0.3);
+  }
+  .pin-toggle input:checked + .pin-toggle-track::after {
+    transform: translateX(14px);
+    background: var(--neon-yellow);
+  }
+
   /* ── CHALLENGE SECTION ── */
   .challenge-section { margin-bottom: 20px; display: none; }
   .challenge-section.visible { display: block; }
@@ -727,13 +788,11 @@ const IDB = (() => {
   /* ── PIN STAR ── */
   .pack-card.pinned { border-color:rgba(255,230,0,0.45); }
   .pack-card.pinned::before { opacity:1; background:linear-gradient(90deg,var(--neon-yellow),var(--neon-pink)); }
-  /* ── Icon sách làm nút pin ── */
+  /* ── Icon sách ── */
   .pack-icon {
     font-size:2rem; margin-bottom:10px; display:inline-block;
-    transition: filter 0.25s, transform 0.2s;
-    cursor:pointer; user-select:none;
+    cursor:default; user-select:none;
   }
-  .pack-icon:hover { transform:scale(1.12); }
   .pack-card.pinned .pack-icon {
     filter: drop-shadow(0 0 8px rgba(255,230,0,0.9)) drop-shadow(0 0 18px rgba(255,180,0,0.5));
     transform: scale(1.08);
@@ -1793,7 +1852,7 @@ async function renderPacksGrid() {
           <button class="pack-action-btn edit" onclick="editPack('${pack.id}',event)">✎</button>
           <button class="pack-action-btn" onclick="deletePack('${pack.id}',event)">✕</button>
         </div>
-        <div class="pack-icon" onclick="togglePin('${pack.id}',event)" title="${isPinned?'Bỏ ghim':'Ghim lên đầu'}">${icons[i % icons.length]}</div>
+        <div class="pack-icon">${icons[i % icons.length]}</div>
         <div class="pack-name">${h(pack.name)}</div>
         <div class="pack-meta">${pack.desc ? h(pack.desc)+'<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
         <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%"></div></div>
@@ -1801,9 +1860,16 @@ async function renderPacksGrid() {
         <button class="btn-publish ${isPublished?'published':''}" onclick="togglePublish('${pack.id}',event)">
           ${isPublished ? '🌐 Đang public · Bấm để ẩn' : '📤 Publish cho học viên'}
         </button>
+        <div class="pin-toggle-wrap${isPinned?' active':''}" onclick="event.stopPropagation()">
+          <label class="pin-toggle">
+            <input type="checkbox" ${isPinned?'checked':''} onchange="togglePin('${pack.id}',this)">
+            <span class="pin-toggle-track"></span>
+          </label>
+          <span class="pin-toggle-label">Ghim lên đầu</span>
+        </div>
       `;
       card.addEventListener('click', (e) => {
-        if (e.target.closest('.pack-actions') || e.target.closest('.btn-publish') || e.target.classList.contains('pack-icon')) return;
+        if (e.target.closest('.pack-actions') || e.target.closest('.btn-publish') || e.target.closest('.pin-toggle-wrap')) return;
         openPack(pack);
       });
       grid.appendChild(card);
@@ -1845,7 +1911,7 @@ async function renderPacksGrid() {
         const card = document.createElement('div');
         card.className = 'pack-card shared-pack-card' + (isPinned?' pinned':'');
         card.innerHTML = `
-          <div class="pack-icon" onclick="toggleAdminPackPin('${pack.id}',this,event)" title="${isPinned?'Bỏ ghim':'Ghim lên đầu'}">${icons[i % icons.length]}</div>
+          <div class="pack-icon">${icons[i % icons.length]}</div>
           <div class="pack-name">${h(pack.name)}</div>
           <div class="pack-meta">${pack.desc ? h(pack.desc)+'<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
           <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%"></div></div>
@@ -1853,9 +1919,16 @@ async function renderPacksGrid() {
             <div class="pack-progress-label" style="margin-top:0">${pct}% hoàn thành</div>
             <div class="pack-admin-badge">⬡ giáo trình</div>
           </div>
+          <div class="pin-toggle-wrap${isPinned?' active':''}" onclick="event.stopPropagation()">
+            <label class="pin-toggle">
+              <input type="checkbox" ${isPinned?'checked':''} onchange="toggleAdminPackPin('${pack.id}',this)">
+              <span class="pin-toggle-track"></span>
+            </label>
+            <span class="pin-toggle-label">Ghim lên đầu</span>
+          </div>
         `;
         card.addEventListener('click', (e) => {
-          if (e.target.classList.contains('pack-icon')) return;
+          if (e.target.closest('.pin-toggle-wrap')) return;
           openAdminPack(pack);
         });
         grid.appendChild(card);
@@ -1889,14 +1962,21 @@ async function renderPacksGrid() {
           <button class="pack-action-btn edit" onclick="editPack('${pack.id}',event)">✎</button>
           <button class="pack-action-btn" onclick="deletePack('${pack.id}',event)">✕</button>
         </div>
-        <div class="pack-icon" onclick="togglePin('${pack.id}',event)" title="${isPinned?'Bỏ ghim':'Ghim lên đầu'}">${icons[i % icons.length]}</div>
+        <div class="pack-icon">${icons[i % icons.length]}</div>
         <div class="pack-name">${h(pack.name)}</div>
         <div class="pack-meta">${pack.desc ? h(pack.desc)+'<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
         <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%"></div></div>
         <div class="pack-progress-label">${pct}% hoàn thành</div>
+        <div class="pin-toggle-wrap${isPinned?' active':''}" onclick="event.stopPropagation()">
+          <label class="pin-toggle">
+            <input type="checkbox" ${isPinned?'checked':''} onchange="togglePin('${pack.id}',this)">
+            <span class="pin-toggle-track"></span>
+          </label>
+          <span class="pin-toggle-label">Ghim lên đầu</span>
+        </div>
       `;
       card.addEventListener('click', (e) => {
-        if (e.target.closest('.pack-actions') || e.target.classList.contains('pack-icon')) return;
+        if (e.target.closest('.pack-actions') || e.target.closest('.pin-toggle-wrap')) return;
         openPack(pack);
       });
       grid.appendChild(card);
@@ -1966,22 +2046,25 @@ async function savePackModal() {
 }
 function editPack(id, e) { e.stopPropagation(); openPackModal(id); }
 
-async function togglePin(id, e) {
-  e.stopPropagation();
+async function togglePin(id, checkbox) {
   const p = packs.find(p => p.id === id);
   if (!p) return;
-  p.pinned = !p.pinned;
+  p.pinned = checkbox.checked;
+  // Update wrap class immediately for instant visual feedback
+  const wrap = checkbox.closest('.pin-toggle-wrap');
+  if (wrap) wrap.classList.toggle('active', p.pinned);
   await savePacks();
   renderPacksGrid();
   showToast('success', p.pinned ? '⭐ Đã ghim lên đầu' : '☆ Đã bỏ ghim');
 }
 
-async function toggleAdminPackPin(id, btn, e) {
-  e.stopPropagation();
+async function toggleAdminPackPin(id, checkbox) {
   let idbData = null;
   try { idbData = await IDB.get('ap::' + id); } catch(e2) {}
   if (!idbData) idbData = {};
-  idbData._pinned = !idbData._pinned;
+  idbData._pinned = checkbox.checked;
+  const wrap = checkbox.closest('.pin-toggle-wrap');
+  if (wrap) wrap.classList.toggle('active', idbData._pinned);
   try { await IDB.set('ap::' + id, idbData); } catch(e2) {}
   renderPacksGrid();
   showToast('success', idbData._pinned ? '⭐ Đã ghim lên đầu' : '☆ Đã bỏ ghim');
