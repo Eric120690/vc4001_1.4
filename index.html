@@ -727,17 +727,17 @@ const IDB = (() => {
   /* ── PIN STAR ── */
   .pack-card.pinned { border-color:rgba(255,230,0,0.45); }
   .pack-card.pinned::before { opacity:1; background:linear-gradient(90deg,var(--neon-yellow),var(--neon-pink)); }
-  .btn-pin-star {
-    position:absolute; top:-10px; right:-10px;
-    background:rgba(0,0,0,0.5); border:1.5px solid rgba(255,255,255,0.1);
-    border-radius:50%; width:28px; height:28px;
-    display:flex; align-items:center; justify-content:center;
-    cursor:pointer; font-size:0.9rem; line-height:1; padding:0;
-    opacity:0.4; transition:opacity 0.2s, transform 0.2s, border-color 0.2s;
-    z-index:10;
+  /* ── Icon sách làm nút pin ── */
+  .pack-icon {
+    font-size:2rem; margin-bottom:10px; display:inline-block;
+    transition: filter 0.25s, transform 0.2s;
+    cursor:pointer; user-select:none;
   }
-  .btn-pin-star:hover { opacity:1; transform:scale(1.15); border-color:rgba(255,230,0,0.6); }
-  .btn-pin-star.is-pinned { opacity:1; border-color:rgba(255,230,0,0.8); background:rgba(255,230,0,0.15); filter:drop-shadow(0 0 5px rgba(255,230,0,0.6)); }
+  .pack-icon:hover { transform:scale(1.12); }
+  .pack-card.pinned .pack-icon {
+    filter: drop-shadow(0 0 8px rgba(255,230,0,0.9)) drop-shadow(0 0 18px rgba(255,180,0,0.5));
+    transform: scale(1.08);
+  }
   /* ── LEVEL FILTER (flashcard) ── */
   .level-filter-wrap { display:flex; align-items:center; gap:6px; }
   .level-filter-label { font-size:0.62rem; color:rgba(255,255,255,0.3); letter-spacing:0.15em; text-transform:uppercase; white-space:nowrap; }
@@ -1789,12 +1789,11 @@ async function renderPacksGrid() {
       const card = document.createElement('div');
       card.className = 'pack-card' + (isPinned?' pinned':'');
       card.innerHTML = `
-        <button class="btn-pin-star ${isPinned?'is-pinned':''}" onclick="togglePin('${pack.id}',event)" title="${isPinned?'Bỏ ghim':'Ghim lên đầu'}">⭐</button>
         <div class="pack-actions">
           <button class="pack-action-btn edit" onclick="editPack('${pack.id}',event)">✎</button>
           <button class="pack-action-btn" onclick="deletePack('${pack.id}',event)">✕</button>
         </div>
-        <div class="pack-icon">${icons[i % icons.length]}</div>
+        <div class="pack-icon" onclick="togglePin('${pack.id}',event)" title="${isPinned?'Bỏ ghim':'Ghim lên đầu'}">${icons[i % icons.length]}</div>
         <div class="pack-name">${h(pack.name)}</div>
         <div class="pack-meta">${pack.desc ? h(pack.desc)+'<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
         <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%"></div></div>
@@ -1804,7 +1803,7 @@ async function renderPacksGrid() {
         </button>
       `;
       card.addEventListener('click', (e) => {
-        if (e.target.closest('.pack-actions') || e.target.closest('.btn-publish') || e.target.closest('.btn-pin-star')) return;
+        if (e.target.closest('.pack-actions') || e.target.closest('.btn-publish') || e.target.classList.contains('pack-icon')) return;
         openPack(pack);
       });
       grid.appendChild(card);
@@ -1827,16 +1826,26 @@ async function renderPacksGrid() {
         // Đọc IDB để lấy words + progress thực tế của user
         let idbData = null;
         try { idbData = await IDB.get('ap::' + pack.id); } catch(e) {}
+        pack._idbData = idbData;
+        pack._pinned = !!(idbData?._pinned);
+      }
+      // Sort: pinned lên đầu
+      adminPacks.sort((a,b) => (b._pinned?1:0)-(a._pinned?1:0));
+
+      for (let i = 0; i < adminPacks.length; i++) {
+        const pack = adminPacks[i];
+        const idbData = pack._idbData;
 
         const total    = idbData?.words?.length ?? (pack.wordCount || 0);
         const prog     = idbData?._progress || {};
         const mastered = idbData?.words ? idbData.words.filter(w => prog[w.word]).length : 0;
         const pct      = total ? Math.round(mastered / total * 100) : 0;
 
+        const isPinned = !!(idbData?._pinned);
         const card = document.createElement('div');
-        card.className = 'pack-card shared-pack-card';
+        card.className = 'pack-card shared-pack-card' + (isPinned?' pinned':'');
         card.innerHTML = `
-          <div class="pack-icon">${icons[i % icons.length]}</div>
+          <div class="pack-icon" onclick="toggleAdminPackPin('${pack.id}',this,event)" title="${isPinned?'Bỏ ghim':'Ghim lên đầu'}">${icons[i % icons.length]}</div>
           <div class="pack-name">${h(pack.name)}</div>
           <div class="pack-meta">${pack.desc ? h(pack.desc)+'<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
           <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%"></div></div>
@@ -1845,7 +1854,10 @@ async function renderPacksGrid() {
             <div class="pack-admin-badge">⬡ giáo trình</div>
           </div>
         `;
-        card.addEventListener('click', () => openAdminPack(pack));
+        card.addEventListener('click', (e) => {
+          if (e.target.classList.contains('pack-icon')) return;
+          openAdminPack(pack);
+        });
         grid.appendChild(card);
       }
     }).catch(() => {});
@@ -1873,19 +1885,18 @@ async function renderPacksGrid() {
       const card = document.createElement('div');
       card.className = 'pack-card' + (isPinned?' pinned':'');
       card.innerHTML = `
-        <button class="btn-pin-star ${isPinned?'is-pinned':''}" onclick="togglePin('${pack.id}',event)" title="${isPinned?'Bỏ ghim':'Ghim lên đầu'}">⭐</button>
         <div class="pack-actions">
           <button class="pack-action-btn edit" onclick="editPack('${pack.id}',event)">✎</button>
           <button class="pack-action-btn" onclick="deletePack('${pack.id}',event)">✕</button>
         </div>
-        <div class="pack-icon">${icons[i % icons.length]}</div>
+        <div class="pack-icon" onclick="togglePin('${pack.id}',event)" title="${isPinned?'Bỏ ghim':'Ghim lên đầu'}">${icons[i % icons.length]}</div>
         <div class="pack-name">${h(pack.name)}</div>
         <div class="pack-meta">${pack.desc ? h(pack.desc)+'<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
         <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%"></div></div>
         <div class="pack-progress-label">${pct}% hoàn thành</div>
       `;
       card.addEventListener('click', (e) => {
-        if (e.target.closest('.pack-actions') || e.target.closest('.btn-pin-star')) return;
+        if (e.target.closest('.pack-actions') || e.target.classList.contains('pack-icon')) return;
         openPack(pack);
       });
       grid.appendChild(card);
@@ -1962,7 +1973,18 @@ async function togglePin(id, e) {
   p.pinned = !p.pinned;
   await savePacks();
   renderPacksGrid();
-  showToast('success', p.pinned ? '📌 Đã ghim lên đầu' : '📍 Đã bỏ ghim');
+  showToast('success', p.pinned ? '⭐ Đã ghim lên đầu' : '☆ Đã bỏ ghim');
+}
+
+async function toggleAdminPackPin(id, btn, e) {
+  e.stopPropagation();
+  let idbData = null;
+  try { idbData = await IDB.get('ap::' + id); } catch(e2) {}
+  if (!idbData) idbData = {};
+  idbData._pinned = !idbData._pinned;
+  try { await IDB.set('ap::' + id, idbData); } catch(e2) {}
+  renderPacksGrid();
+  showToast('success', idbData._pinned ? '⭐ Đã ghim lên đầu' : '☆ Đã bỏ ghim');
 }
 async function deletePack(id, e) {
   e.stopPropagation();
