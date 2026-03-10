@@ -3592,9 +3592,21 @@ async function runInitialDownload() {
     localVersion = v?.version || 0;
   } catch(e) {}
 
-  // Bắt đầu hiệu ứng messages vui trong lúc chờ
+  // 3. Nếu offline → dùng cache hiện có, vào app luôn
+  if (!navigator.onLine) {
+    await _loadMetaFromCache();
+    showPacksScreen();
+    return;
+  }
+
+  // 4. Fetch version từ Firebase — chỉ 1 read duy nhất
+  // Hiện overlay loading + fun messages trong lúc chờ
+  const overlay2 = document.getElementById('initLoadingOverlay');
   const subEl    = document.getElementById('initLoadingSub');
   const titleEl  = document.getElementById('initLoadingTitle');
+  if (overlay2) overlay2.classList.add('show');
+  if (titleEl) titleEl.textContent = localVersion ? '↻ Kiểm tra cập nhật...' : 'Đang tải lần đầu...';
+
   const funMessages = [
     '☕ Rót ly cà phê chờ xíu nha...',
     '🔍 Đang soi xem admin có lén thêm từ mới không...',
@@ -3609,23 +3621,13 @@ async function runInitialDownload() {
     if (subEl) { subEl.style.opacity = 0; setTimeout(() => { if(subEl) { subEl.textContent = funMessages[msgIdx]; subEl.style.opacity = 1; }}, 200); }
   }, 1800);
 
-  // 3. Nếu offline → dùng cache hiện có, vào app luôn
-  if (!navigator.onLine) {
-    clearInterval(msgTimer);
-    if (subEl) subEl.textContent = '📦 Offline — dùng dữ liệu đã lưu';
-    await _loadMetaFromCache();
-    showPacksScreen();
-    return;
-  }
-
-  // 4. Fetch version từ Firebase — chỉ 1 read duy nhất
-  if (titleEl) titleEl.textContent = localVersion ? '↻ Kiểm tra cập nhật...' : 'Đang tải lần đầu...';
   let remoteVersion = 0;
   try {
     const snap = await window._getDoc(window._doc(window._db, 'appMeta', 'version'));
     remoteVersion = snap.exists() ? (snap.data().version || 0) : 0;
   } catch(e) {
     clearInterval(msgTimer);
+    if (overlay2) overlay2.classList.remove('show');
     console.warn('[version] Cannot fetch, using cache');
     await _loadMetaFromCache();
     showPacksScreen();
@@ -3640,6 +3642,8 @@ async function runInitialDownload() {
     if (subEl) { subEl.style.opacity=0; setTimeout(()=>{ if(subEl){subEl.textContent='✓ Dữ liệu đã mới nhất!'; subEl.style.opacity=1;} },200); }
     console.log('[version] Cache is fresh — 0 Firebase reads');
     await _loadMetaFromCache();
+    await new Promise(r => setTimeout(r, 600));
+    if (overlay2) overlay2.classList.remove('show');
     showPacksScreen();
     return;
   }
@@ -3692,13 +3696,13 @@ async function runInitialDownload() {
   console.log('[download] Need:', needDownload.length, '(own:', ownNeed.length, 'admin:', adminNeed.length, ')');
 
   if (!needDownload.length) {
-    // Không có gì mới → cập nhật version và vào app
     await IDB.set('__appversion__', { version: remoteVersion, cachedAt: Date.now() }).catch(() => {});
+    if (document.getElementById('initLoadingOverlay')) document.getElementById('initLoadingOverlay').classList.remove('show');
     showPacksScreen();
     return;
   }
 
-  // 7. Hiện loading overlay
+  // 7. Cập nhật overlay (đã show từ bước 4)
   const overlay = document.getElementById('initLoadingOverlay');
   const titleEl = document.getElementById('initLoadingTitle');
   const subEl   = document.getElementById('initLoadingSub');
@@ -3706,7 +3710,6 @@ async function runInitialDownload() {
   const labelEl = document.getElementById('initProgressLabel');
   const listEl  = document.getElementById('initPackList');
 
-  overlay.classList.add('show');
   titleEl.textContent = localVersion ? '↻ Đang cập nhật dữ liệu...' : 'Đang tải bộ từ vựng...';
   subEl.textContent   = `${needDownload.length} gói cần ${localVersion ? 'cập nhật' : 'tải về máy'}`;
   listEl.innerHTML    = '';
