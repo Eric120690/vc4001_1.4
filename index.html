@@ -1078,6 +1078,12 @@ const IDB = (() => {
   .sync-profile-btn.upload:hover  { border-color:rgba(0,245,255,0.5); color:var(--neon-cyan); background:rgba(0,245,255,0.08); }
   .sync-profile-btn.download:hover { border-color:rgba(57,255,20,0.5); color:var(--neon-green); background:rgba(57,255,20,0.08); }
   .sync-profile-btn:disabled { opacity:0.4; pointer-events:none; }
+  .profile-stat { background:var(--glass); border:1px solid var(--glass-border); border-radius:12px; padding:12px; text-align:center; }
+  .profile-stat-val { font-family:'Syne',sans-serif; font-size:1.4rem; font-weight:800; color:var(--neon-cyan); }
+  .profile-stat-val.green { color:var(--neon-green); }
+  .profile-stat-val.pink  { color:var(--neon-pink); }
+  .profile-stat-val.yellow{ color:var(--neon-yellow); }
+  .profile-stat-lbl { font-size:0.6rem; color:rgba(255,255,255,0.3); letter-spacing:0.15em; text-transform:uppercase; margin-top:3px; }
   .profile-streak { display:flex; align-items:center; justify-content:center; gap:8px; padding:10px; background:rgba(255,230,0,0.05); border:1px solid rgba(255,230,0,0.15); border-radius:12px; margin-bottom:16px; }
   .profile-streak-fire { font-size:1.4rem; }
   .profile-streak-count { font-family:'Syne',sans-serif; font-size:1.2rem; font-weight:800; color:var(--neon-yellow); }
@@ -1593,54 +1599,39 @@ function packDoc(packId) {
 }
 
 async function savePacks() {
-  // IDB trước — không cần mạng
-  IDB.set('__packlist__', { packs, updatedAt: Date.now() }).catch(() => {});
-  // Firebase ngầm nếu có mạng
+  const now = Date.now();
+  // Serialize rõ ràng từng field — không để sót pinned
+  const packsToSave = packs.map(p => ({
+    id: p.id,
+    name: p.name,
+    desc: p.desc || '',
+    createdAt: p.createdAt || now,
+    pinned: p.pinned || false,
+    published: p.published || false,
+    _wordCount: p._wordCount || 0,
+    _masteredCount: p._masteredCount || 0,
+  }));
+  IDB.set('__packlist__', { packs: packsToSave, updatedAt: now }).catch(() => {});
   if (navigator.onLine) {
-    window._setDoc(userDoc(), { packs, updatedAt: Date.now() }, { merge: true })
+    window._setDoc(userDoc(), { packs: packsToSave, updatedAt: now }, { merge: true })
       .catch(e => console.warn('savePacks Firebase error:', e.message));
   }
 }
 
 async function loadPacks() {
-  // Thử đọc từ IDB trước — không tốn Firebase read
   try {
     const cached = await IDB.get('__packlist__');
-    if (cached && cached.packs?.length) {
-      console.log('[IDB] loadPacks from cache:', cached.packs.length);
-      // Sync Firebase ngầm để cập nhật nếu có thay đổi từ thiết bị khác
-      _syncPackListInBackground();
-      return cached.packs;
-    }
+    if (cached && cached.packs?.length) return cached.packs;
   } catch(e) {}
-  // Fallback: load từ Firebase lần đầu
   try {
     const snap = await window._getDoc(userDoc());
     if (snap.exists() && snap.data().packs) {
       const p = snap.data().packs;
-      IDB.set('__packlist__', { packs: p }).catch(() => {});
+      IDB.set('__packlist__', { packs: p, updatedAt: snap.data().updatedAt || Date.now() }).catch(() => {});
       return p;
     }
   } catch(e) { console.warn('loadPacks error:', e.message); }
   return [];
-}
-
-// Sync danh sách packs từ Firebase ngầm (không block UI)
-async function _syncPackListInBackground() {
-  try {
-    const snap = await window._getDoc(userDoc());
-    if (!snap.exists()) return;
-    const remotePacks = snap.data().packs || [];
-    const remoteTime  = snap.data().updatedAt || 0;
-    const cached = await IDB.get('__packlist__');
-    const localTime = cached?.cachedAt || 0;
-    if (remoteTime > localTime) {
-      // Firebase mới hơn → cập nhật IDB và UI
-      IDB.set('__packlist__', { packs: remotePacks }).catch(() => {});
-      packs = remotePacks;
-      renderPacksGrid();
-    }
-  } catch(e) {}
 }
 
 async function saveData() {
@@ -1648,49 +1639,60 @@ async function saveData() {
   const now = Date.now();
   const badge = document.getElementById('cloudBadge');
 
-  // Admin packs: chỉ lưu progress của user, không lưu words
+  // ── ADMIN PACK: lưu progress (mastered + hidden) của user ──
   if (currentPack._isAdminPack) {
-    const prog = {};
-    words.forEach(w => { if (w.mastered) prog[w.word] = true; });
-
-    // 1. Lưu IDB NGAY — không cần mạng
+    const prog = {}, hidden = {};
+    words.forEach(w => {
+      if (w.mastered) prog[w.word] = true;
+      if (w.hidden)   hidden[w.word] = true;
+    });
     const cached = await IDB.get('ap::' + currentPack.id).catch(() => null);
     if (cached) {
-      await IDB.set('ap::' + currentPack.id, { ...cached, _progress: prog, _progressUpdatedAt: now }).catch(() => {});
+      await IDB.set('ap::' + currentPack.id, {
+        ...cached, _progress: prog, _hidden: hidden, _progressUpdatedAt: now
+      }).catch(() => {});
     }
     if (badge) { badge.textContent = '📦 Đã lưu local'; badge.style.color = 'var(--neon-green)'; }
-
-    // 2. Sync Firebase ngầm — không block
     if (navigator.onLine) {
       const progRef = window._doc(window._db, 'users', getUID(), 'adminProgress', currentPack.id);
-      window._setDoc(progRef, { progress: prog, updatedAt: now }, { merge: true })
-        .then(() => { if (badge) { badge.textContent = '☁ Đã lưu tiến độ'; badge.style.color = 'var(--neon-green)'; } })
+      window._setDoc(progRef, { progress: prog, hidden, updatedAt: now }, { merge: true })
+        .then(() => { if (badge) { badge.textContent = '☁ Đã lưu'; badge.style.color = 'var(--neon-green)'; } })
         .catch(e => console.warn('saveAdminProgress error:', e.message));
     }
     return;
   }
 
-  // Own pack: lưu IDB trước, Firebase sau
-  // 1. Lưu IDB NGAY — không cần mạng
-  await IDB.set(currentPack.id, { words, updatedAt: now }).catch(() => {});
+  // ── OWN PACK: serialize đầy đủ mastered + hidden ──
+  const wordsToSave = words.map(w => ({
+    word: w.word,
+    meaning: w.meaning,
+    phonetics: w.phonetics || '',
+    description: w.description || '',
+    example: w.example || '',
+    example_vi: w.example_vi || '',
+    type: w.type || '',
+    level: w.level || '',
+    mastered: w.mastered || false,
+    hidden: w.hidden || false,
+  }));
+  await IDB.set(currentPack.id, { words: wordsToSave, updatedAt: now }).catch(() => {});
   const p = packs.find(x => x.id === currentPack.id);
-  if (p) { p._wordCount = words.length; p._masteredCount = words.filter(w=>w.mastered).length; }
+  if (p) {
+    p._wordCount     = wordsToSave.filter(w => !w.hidden).length;
+    p._masteredCount = wordsToSave.filter(w => w.mastered && !w.hidden).length;
+  }
   if (badge) { badge.textContent = '📦 Đã lưu local'; badge.style.color = 'rgba(57,255,20,0.7)'; }
-
-  // 2. Sync Firebase ngầm nếu có mạng
   if (navigator.onLine) {
     window._setDoc(packDoc(currentPack.id),
-      { words, name: currentPack.name, desc: currentPack.desc || '', updatedAt: now },
+      { words: wordsToSave, name: currentPack.name, desc: currentPack.desc || '', updatedAt: now },
       { merge: true })
       .then(async () => {
         if (badge) { badge.textContent = '☁ Đã lưu'; badge.style.color = 'var(--neon-green)'; }
-        // Nếu pack này đang được publish → bump version để user biết
         const thisPack = packs.find(x => x.id === currentPack.id);
         if (isAdmin() && thisPack?.published) {
-          // Cập nhật words mới vào adminPacks luôn
           await window._setDoc(window._doc(window._db, 'adminPacks', currentPack.id), {
-            words: words.map(w => ({ ...w, mastered: false })),
-            wordCount: words.length, updatedAt: now
+            words: wordsToSave.map(w => ({ ...w, mastered: false, hidden: false })),
+            wordCount: wordsToSave.length, updatedAt: now
           }, { merge: true }).catch(() => {});
           await _bumpAppVersion();
         }
@@ -1700,89 +1702,53 @@ async function saveData() {
         if (badge) { badge.textContent = '📦 Local (chưa sync)'; badge.style.color = 'rgba(255,230,0,0.7)'; }
       });
   } else {
-    if (badge) { badge.textContent = '📦 Offline — sẽ sync khi có mạng'; badge.style.color = 'rgba(255,230,0,0.7)'; }
-    // Đăng ký sync khi có mạng lại
-    window.addEventListener('online', async function _syncOnReconnect() {
-      window.removeEventListener('online', _syncOnReconnect);
-      try {
-        await window._setDoc(packDoc(currentPack.id),
-          { words, name: currentPack.name, desc: currentPack.desc || '', updatedAt: now },
-          { merge: true });
-        if (badge) { badge.textContent = '☁ Đã sync'; badge.style.color = 'var(--neon-green)'; }
-      } catch(e) { console.warn('Reconnect sync error:', e); }
-    }, { once: true });
+    if (badge) { badge.textContent = '📦 Offline'; badge.style.color = 'rgba(255,230,0,0.7)'; }
   }
-}
-
-// ── Background sync: kiểm tra Firebase có mới hơn IDB không ──
-async function _checkPackUpdate(packId, localUpdatedAt, isShared) {
-  try {
-    const ref = isShared
-      ? window._doc(window._db, 'adminPacks', packId)
-      : packDoc(packId);
-    const snap = await window._getDoc(ref);
-    if (!snap.exists()) return;
-    const remoteTime = snap.data().updatedAt || 0;
-    if (remoteTime > (localUpdatedAt || 0)) {
-      // Firebase mới hơn → cập nhật IDB
-      const newWords = snap.data().words || [];
-      await IDB.set(packId, { words: newWords, updatedAt: remoteTime }).catch(() => {});
-      console.log('[sync] Pack updated from server:', packId, newWords.length, 'words');
-      // Nếu user đang mở pack này → cập nhật UI nhẹ nhàng
-      if (currentPack && currentPack.id === packId) {
-        const badge = document.getElementById('cloudBadge');
-        if (badge) { badge.textContent = '☁ Đã cập nhật'; badge.style.color = 'var(--neon-cyan)'; }
-      }
-    }
-  } catch(e) {}
 }
 
 async function loadData() {
   if (!currentPack) return false;
 
-  // ── ADMIN PACK (user học): cache-first + background sync ──
+  // ── ADMIN PACK ──
   if (currentPack._isAdminPack) {
     const cached = await IDB.get('ap::' + currentPack.id).catch(() => null);
-
     if (cached && cached.words?.length) {
-      const prog = cached._progress || {};
-      words = cached.words.map(w => ({ ...w, mastered: !!prog[w.word] }));
-      _checkAdminPackUpdate(currentPack.id, cached.updatedAt);
+      const prog   = cached._progress || {};
+      const hidden = cached._hidden   || {};
+      words = cached.words.map(w => ({ ...w, mastered: !!prog[w.word], hidden: !!hidden[w.word] }));
       return true;
     }
-
-    // Cache miss → load Firebase lần đầu
     try {
       const packSnap = await window._getDoc(window._doc(window._db, 'adminPacks', currentPack.id));
       if (!packSnap.exists()) return false;
-      const data = packSnap.data();
+      const data      = packSnap.data();
       const packWords = data.words || [];
-      const progSnap = await window._getDoc(
+      const progSnap  = await window._getDoc(
         window._doc(window._db, 'users', getUID(), 'adminProgress', currentPack.id)
       ).catch(() => null);
-      const prog = progSnap?.exists() ? (progSnap.data().progress || {}) : {};
+      const prog   = progSnap?.exists() ? (progSnap.data().progress || {}) : {};
+      const hidden = progSnap?.exists() ? (progSnap.data().hidden   || {}) : {};
       await IDB.set('ap::' + currentPack.id, {
-        words: packWords, updatedAt: data.updatedAt || Date.now(), _progress: prog
+        words: packWords, updatedAt: data.updatedAt || Date.now(), _progress: prog, _hidden: hidden
       }).catch(() => {});
-      words = packWords.map(w => ({ ...w, mastered: !!prog[w.word] }));
+      words = packWords.map(w => ({ ...w, mastered: !!prog[w.word], hidden: !!hidden[w.word] }));
       return true;
     } catch(e) { console.warn('loadAdminPackData error:', e.message); return false; }
   }
 
-  // ── OWN PACK: cache-first + background sync ──
+  // ── OWN PACK ──
   const cached = await IDB.get(currentPack.id).catch(() => null);
-
   if (cached && cached.words?.length) {
-    words = cached.words;
+    words = cached.words; // đã có mastered + hidden đầy đủ
     const p = packs.find(x => x.id === currentPack.id);
-    if (p) { p._wordCount = words.length; p._masteredCount = words.filter(w=>w.mastered).length; }
+    if (p) {
+      p._wordCount     = words.filter(w => !w.hidden).length;
+      p._masteredCount = words.filter(w => w.mastered && !w.hidden).length;
+    }
     const badge = document.getElementById('cloudBadge');
     if (badge) { badge.innerHTML = '📦 <span style="color:var(--neon-green)">Local</span>'; badge.style.color='rgba(57,255,20,0.5)'; }
-    _checkPackUpdate(currentPack.id, cached.updatedAt, false);
     return true;
   }
-
-  // Cache miss → load Firebase lần đầu
   try {
     const snap = await window._getDoc(packDoc(currentPack.id));
     if (snap.exists() && snap.data().words?.length) {
@@ -1793,25 +1759,6 @@ async function loadData() {
     }
   } catch(e) { console.warn('loadData error:', e.message); }
   return false;
-}
-
-// Background check admin pack update
-async function _checkAdminPackUpdate(packId, localUpdatedAt) {
-  try {
-    const snap = await window._getDoc(window._doc(window._db, 'adminPacks', packId));
-    if (!snap.exists()) return;
-    const remoteTime = snap.data().updatedAt || 0;
-    if (remoteTime > (localUpdatedAt || 0)) {
-      const newWords = snap.data().words || [];
-      const cached = await IDB.get('ap::' + packId).catch(() => null);
-      await IDB.set('ap::' + packId, {
-        words: newWords,
-        updatedAt: remoteTime,
-        _progress: cached?._progress || {}
-      }).catch(() => {});
-      console.log('[sync] Admin pack updated:', packId);
-    }
-  } catch(e) {}
 }
 
 // ============================================================
@@ -2066,15 +2013,20 @@ async function togglePin(id, checkbox) {
 }
 
 async function toggleAdminPackPin(id, checkbox) {
+  const isPinned = checkbox.checked;
   let idbData = null;
   try { idbData = await IDB.get('ap::' + id); } catch(e2) {}
   if (!idbData) idbData = {};
-  idbData._pinned = checkbox.checked;
-  const wrap = checkbox.closest('.pin-toggle-wrap');
-  if (wrap) wrap.classList.toggle('active', idbData._pinned);
+  idbData._pinned = isPinned;
   try { await IDB.set('ap::' + id, idbData); } catch(e2) {}
+  if (navigator.onLine) {
+    const pinRef = window._doc(window._db, 'users', getUID(), 'adminPackPins', id);
+    window._setDoc(pinRef, { pinned: isPinned, updatedAt: Date.now() }, { merge: true }).catch(() => {});
+  }
+  const wrap = checkbox.closest('.pin-toggle-wrap');
+  if (wrap) wrap.classList.toggle('active', isPinned);
   renderPacksGrid();
-  showToast('success', idbData._pinned ? '⭐ Đã ghim lên đầu' : '☆ Đã bỏ ghim');
+  showToast('success', isPinned ? '⭐ Đã ghim lên đầu' : '☆ Đã bỏ ghim');
 }
 async function deletePack(id, e) {
   e.stopPropagation();
@@ -2645,13 +2597,6 @@ async function signInWithGoogle() {
   }
 }
 
-async function handleSignOut() {
-  if (!confirm('Đăng xuất khỏi LEXON?')) return;
-  closeProfile();
-  await window._signOut(window._auth);
-}
-
-// ── SYNC THỦ CÔNG ──
 async function _setSyncBtns(loading) {
   const up = document.getElementById('syncUpBtn');
   const dn = document.getElementById('syncDownBtn');
@@ -2665,10 +2610,9 @@ async function manualPush() {
   await _setSyncBtns(true);
   try {
     const now = Date.now();
-    // 1. Đẩy danh sách packs (metadata: pinned, name, desc...)
+    // 1. Pack metadata (bao gồm pinned)
     await window._setDoc(userDoc(), { packs, updatedAt: now }, { merge: true });
-
-    // 2. Đẩy trạng thái học từng pack riêng (words gồm mastered, hidden)
+    // 2. Words từng own pack (mastered + hidden)
     for (const pack of packs) {
       const cached = await IDB.get(pack.id).catch(() => null);
       if (cached?.words?.length) {
@@ -2677,26 +2621,23 @@ async function manualPush() {
           { merge: true });
       }
     }
-
-    // 3. Đẩy progress gói giáo trình (mastered)
+    // 3. Progress gói giáo trình (mastered + hidden)
     const allKeys = await IDB.getAllKeys().catch(() => []);
     for (const key of allKeys) {
       if (!key.startsWith('ap::')) continue;
       const cached = await IDB.get(key).catch(() => null);
-      if (cached?._progress) {
+      if (cached?._progress !== undefined || cached?._hidden !== undefined) {
         const packId = key.replace('ap::', '');
         await window._setDoc(
           window._doc(window._db, 'users', getUID(), 'adminProgress', packId),
-          { progress: cached._progress, updatedAt: now }, { merge: true });
+          { progress: cached._progress || {}, hidden: cached._hidden || {}, updatedAt: now },
+          { merge: true });
       }
     }
-
     showToast('success', '☁ Đã tải lên cloud thành công!');
   } catch(e) {
     showToast('error', '✕ Lỗi: ' + e.message);
-  } finally {
-    await _setSyncBtns(false);
-  }
+  } finally { await _setSyncBtns(false); }
 }
 
 async function manualPull() {
@@ -2705,23 +2646,21 @@ async function manualPull() {
   if (!confirm('Tải dữ liệu từ cloud về sẽ ghi đè trạng thái hiện tại trên máy này. Tiếp tục?')) return;
   await _setSyncBtns(true);
   try {
-    // 1. Tải danh sách packs
+    const now = Date.now();
+    // 1. Pack metadata
     const userSnap = await window._getDoc(userDoc());
     if (!userSnap.exists()) { showToast('error','⚠ Không có dữ liệu trên cloud'); return; }
     const remotePacks = userSnap.data().packs || [];
-    const now = Date.now();
     await IDB.set('__packlist__', { packs: remotePacks, updatedAt: now });
     packs = remotePacks;
-
-    // 2. Tải words (trạng thái mastered, hidden) từng pack
+    // 2. Words từng own pack
     for (const pack of remotePacks) {
       const snap = await window._getDoc(packDoc(pack.id)).catch(() => null);
       if (snap?.exists() && snap.data().words?.length) {
         await IDB.set(pack.id, { words: snap.data().words, updatedAt: snap.data().updatedAt || now });
       }
     }
-
-    // 3. Tải progress gói giáo trình
+    // 3. Progress gói giáo trình (mastered + hidden)
     const progSnaps = await window._getDocs(
       window._collection(window._db, 'users', getUID(), 'adminProgress')
     ).catch(() => null);
@@ -2730,19 +2669,35 @@ async function manualPull() {
         const cached = await IDB.get('ap::' + doc.id).catch(() => null);
         if (cached) {
           await IDB.set('ap::' + doc.id, {
-            ...cached, _progress: doc.data().progress || {}, _progressUpdatedAt: doc.data().updatedAt || now
+            ...cached,
+            _progress: doc.data().progress || {},
+            _hidden:   doc.data().hidden   || {},
+            _progressUpdatedAt: doc.data().updatedAt || now
           });
         }
       }
     }
-
+    // 4. Admin pack pins
+    const pinSnaps = await window._getDocs(
+      window._collection(window._db, 'users', getUID(), 'adminPackPins')
+    ).catch(() => null);
+    if (pinSnaps) {
+      for (const doc of pinSnaps.docs) {
+        const cached = await IDB.get('ap::' + doc.id).catch(() => null);
+        if (cached) await IDB.set('ap::' + doc.id, { ...cached, _pinned: doc.data().pinned || false });
+      }
+    }
     renderPacksGrid();
     showToast('success', '⬇ Đã tải dữ liệu mới nhất từ cloud!');
   } catch(e) {
     showToast('error', '✕ Lỗi: ' + e.message);
-  } finally {
-    await _setSyncBtns(false);
-  }
+  } finally { await _setSyncBtns(false); }
+}
+
+async function handleSignOut() {
+  if (!confirm('Đăng xuất khỏi LEXON?')) return;
+  closeProfile();
+  await window._signOut(window._auth);
 }
 
 function showAccessDenied(user) {
@@ -2822,7 +2777,6 @@ async function openProfile() {
 
   document.getElementById('profileOverlay').classList.add('show');
 
-  // Load stats from Firestore
   try {
     const snap = await window._getDoc(userDoc());
     const data = snap.exists() ? snap.data() : {};
