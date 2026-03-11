@@ -1596,24 +1596,45 @@ async function savePacks() {
 }
 
 async function loadPacks() {
+  // Thử đọc từ IDB trước — không tốn Firebase read
   try {
     const cached = await IDB.get('__packlist__');
     if (cached && cached.packs?.length) {
+      console.log('[IDB] loadPacks from cache:', cached.packs.length);
+      // Sync Firebase ngầm để cập nhật nếu có thay đổi từ thiết bị khác
+      _syncPackListInBackground();
       return cached.packs;
     }
   } catch(e) {}
+  // Fallback: load từ Firebase lần đầu
   try {
     const snap = await window._getDoc(userDoc());
     if (snap.exists() && snap.data().packs) {
       const p = snap.data().packs;
-      IDB.set('__packlist__', { packs: p, updatedAt: snap.data().updatedAt || Date.now() }).catch(() => {});
+      IDB.set('__packlist__', { packs: p }).catch(() => {});
       return p;
     }
   } catch(e) { console.warn('loadPacks error:', e.message); }
   return [];
 }
 
-// (sync ngầm đã bị xóa — dùng nút ⬆⬇ trong profile để đồng bộ thủ công)
+// Sync danh sách packs từ Firebase ngầm (không block UI)
+async function _syncPackListInBackground() {
+  try {
+    const snap = await window._getDoc(userDoc());
+    if (!snap.exists()) return;
+    const remotePacks = snap.data().packs || [];
+    const remoteTime  = snap.data().updatedAt || 0;
+    const cached = await IDB.get('__packlist__');
+    const localTime = cached?.cachedAt || 0;
+    if (remoteTime > localTime) {
+      // Firebase mới hơn → cập nhật IDB và UI
+      IDB.set('__packlist__', { packs: remotePacks }).catch(() => {});
+      packs = remotePacks;
+      renderPacksGrid();
+    }
+  } catch(e) {}
+}
 
 async function saveData() {
   if (!currentPack) return;
@@ -1686,17 +1707,44 @@ async function saveData() {
   }
 }
 
+// ── Background sync: kiểm tra Firebase có mới hơn IDB không ──
+async function _checkPackUpdate(packId, localUpdatedAt, isShared) {
+  try {
+    const ref = isShared
+      ? window._doc(window._db, 'adminPacks', packId)
+      : packDoc(packId);
+    const snap = await window._getDoc(ref);
+    if (!snap.exists()) return;
+    const remoteTime = snap.data().updatedAt || 0;
+    if (remoteTime > (localUpdatedAt || 0)) {
+      // Firebase mới hơn → cập nhật IDB
+      const newWords = snap.data().words || [];
+      await IDB.set(packId, { words: newWords, updatedAt: remoteTime }).catch(() => {});
+      console.log('[sync] Pack updated from server:', packId, newWords.length, 'words');
+      // Nếu user đang mở pack này → cập nhật UI nhẹ nhàng
+      if (currentPack && currentPack.id === packId) {
+        const badge = document.getElementById('cloudBadge');
+        if (badge) { badge.textContent = '☁ Đã cập nhật'; badge.style.color = 'var(--neon-cyan)'; }
+      }
+    }
+  } catch(e) {}
+}
+
 async function loadData() {
   if (!currentPack) return false;
 
-  // ── ADMIN PACK: IDB trước, Firebase nếu cache miss ──
+  // ── ADMIN PACK (user học): cache-first + background sync ──
   if (currentPack._isAdminPack) {
     const cached = await IDB.get('ap::' + currentPack.id).catch(() => null);
+
     if (cached && cached.words?.length) {
       const prog = cached._progress || {};
       words = cached.words.map(w => ({ ...w, mastered: !!prog[w.word] }));
+      _checkAdminPackUpdate(currentPack.id, cached.updatedAt);
       return true;
     }
+
+    // Cache miss → load Firebase lần đầu
     try {
       const packSnap = await window._getDoc(window._doc(window._db, 'adminPacks', currentPack.id));
       if (!packSnap.exists()) return false;
@@ -1714,16 +1762,20 @@ async function loadData() {
     } catch(e) { console.warn('loadAdminPackData error:', e.message); return false; }
   }
 
-  // ── OWN PACK: IDB trước, Firebase nếu cache miss ──
+  // ── OWN PACK: cache-first + background sync ──
   const cached = await IDB.get(currentPack.id).catch(() => null);
+
   if (cached && cached.words?.length) {
     words = cached.words;
     const p = packs.find(x => x.id === currentPack.id);
-    if (p) { p._wordCount = words.filter(w=>!w.hidden).length; p._masteredCount = words.filter(w=>w.mastered&&!w.hidden).length; }
+    if (p) { p._wordCount = words.length; p._masteredCount = words.filter(w=>w.mastered).length; }
     const badge = document.getElementById('cloudBadge');
     if (badge) { badge.innerHTML = '📦 <span style="color:var(--neon-green)">Local</span>'; badge.style.color='rgba(57,255,20,0.5)'; }
+    _checkPackUpdate(currentPack.id, cached.updatedAt, false);
     return true;
   }
+
+  // Cache miss → load Firebase lần đầu
   try {
     const snap = await window._getDoc(packDoc(currentPack.id));
     if (snap.exists() && snap.data().words?.length) {
@@ -1735,13 +1787,24 @@ async function loadData() {
   } catch(e) { console.warn('loadData error:', e.message); }
   return false;
 }
-      const data = snap.data();
-      words = data.words;
-      await IDB.set(currentPack.id, { words, updatedAt: data.updatedAt || Date.now() }).catch(() => {});
-      return true;
+
+// Background check admin pack update
+async function _checkAdminPackUpdate(packId, localUpdatedAt) {
+  try {
+    const snap = await window._getDoc(window._doc(window._db, 'adminPacks', packId));
+    if (!snap.exists()) return;
+    const remoteTime = snap.data().updatedAt || 0;
+    if (remoteTime > (localUpdatedAt || 0)) {
+      const newWords = snap.data().words || [];
+      const cached = await IDB.get('ap::' + packId).catch(() => null);
+      await IDB.set('ap::' + packId, {
+        words: newWords,
+        updatedAt: remoteTime,
+        _progress: cached?._progress || {}
+      }).catch(() => {});
+      console.log('[sync] Admin pack updated:', packId);
     }
-  } catch(e) { console.warn('loadData error:', e.message); }
-  return false;
+  } catch(e) {}
 }
 
 // ============================================================
@@ -1766,11 +1829,7 @@ async function renderPacksGrid() {
   const grid = document.getElementById('packsGrid');
   grid.innerHTML = '';
   const icons = ['📘','📗','📙','📕','📒','📓','📔','📑'];
-  packs.sort((a,b) => {
-    const pd = (b.pinned?1:0) - (a.pinned?1:0);
-    if (pd !== 0) return pd;
-    return (a.name||'').localeCompare(b.name||'');
-  });
+  packs.sort((a,b) => { const d=(b.pinned?1:0)-(a.pinned?1:0); return d!==0?d:(a.name||'').localeCompare(b.name||''); });
 
   if (isAdmin()) {
     // ── ADMIN: chỉ thấy pack của mình, có nút publish ──
@@ -1836,11 +1895,8 @@ async function renderPacksGrid() {
         pack._idbData = idbData;
         pack._pinned = !!(idbData?._pinned);
       }
-      adminPacks.sort((a,b) => {
-        const pd = (b._pinned?1:0) - (a._pinned?1:0);
-        if (pd !== 0) return pd;
-        return (a.name||'').localeCompare(b.name||'');
-      });
+      // Sort: pinned lên đầu
+      adminPacks.sort((a,b) => { const d=(b._pinned?1:0)-(a._pinned?1:0); return d!==0?d:(a.name||'').localeCompare(b.name||''); });
 
       for (let i = 0; i < adminPacks.length; i++) {
         const pack = adminPacks[i];
