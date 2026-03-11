@@ -834,6 +834,33 @@ const IDB = (() => {
   .pack-progress-bar { height:3px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden; margin-bottom:5px; }
   .pack-progress-fill { height:100%; background:linear-gradient(90deg,var(--neon-cyan),var(--neon-green)); border-radius:3px; }
   .pack-progress-label { font-size:0.65rem; color:rgba(255,255,255,0.3); }
+  /* ── Sort order input (admin) ── */
+  .pack-sort-wrap {
+    display:flex; align-items:center; gap:6px; margin-top:10px;
+    padding-top:10px; border-top:1px solid rgba(255,255,255,0.07);
+  }
+  .pack-sort-label { font-size:0.6rem; color:rgba(255,255,255,0.25); letter-spacing:0.12em; text-transform:uppercase; white-space:nowrap; }
+  .pack-sort-input {
+    width:52px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12);
+    border-radius:7px; color:#fff; font-family:'Space Mono',monospace; font-size:0.75rem;
+    text-align:center; padding:4px 6px; outline:none; transition:border-color 0.2s;
+  }
+  .pack-sort-input:focus { border-color:rgba(0,245,255,0.45); }
+  .pack-sort-input::-webkit-inner-spin-button { -webkit-appearance:none; }
+  .pack-sort-save {
+    flex:1; background:rgba(0,245,255,0.08); border:1px solid rgba(0,245,255,0.2);
+    border-radius:7px; color:var(--neon-cyan); font-family:'Space Mono',monospace;
+    font-size:0.62rem; padding:4px 8px; cursor:pointer; transition:all 0.18s; white-space:nowrap;
+  }
+  .pack-sort-save:hover { background:rgba(0,245,255,0.18); border-color:rgba(0,245,255,0.5); }
+  .pack-sort-save.saved { border-color:rgba(57,255,20,0.5); color:var(--neon-green); background:rgba(57,255,20,0.08); }
+  /* Badge số thứ tự hiển thị ở góc card (cả admin & user) */
+  .pack-order-num {
+    position:absolute; top:9px; left:12px;
+    font-family:'Space Mono',monospace; font-size:0.58rem; font-weight:700;
+    color:rgba(255,255,255,0.22); line-height:1; pointer-events:none;
+  }
+  .pack-card.pinned .pack-order-num { color:rgba(255,210,0,0.45); }
   .pack-actions { position:absolute; top:10px; right:10px; display:flex; gap:4px; opacity:0; transition:opacity 0.2s; }
   .pack-card:hover .pack-actions { opacity:1; }
   .pack-action-btn { width:26px; height:26px; border-radius:6px; border:none; background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.5); font-size:0.72rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.15s; }
@@ -1600,7 +1627,6 @@ function packDoc(packId) {
 
 async function savePacks() {
   const now = Date.now();
-  // Serialize rõ ràng — đảm bảo pinned luôn được lưu
   const packsToSave = packs.map(p => ({
     id: p.id,
     name: p.name,
@@ -1608,6 +1634,7 @@ async function savePacks() {
     createdAt: p.createdAt || now,
     pinned: !!p.pinned,
     published: !!p.published,
+    sortOrder: p.sortOrder ?? 9999,
     _wordCount: p._wordCount || 0,
     _masteredCount: p._masteredCount || 0,
   }));
@@ -1792,56 +1819,78 @@ async function renderPacksGrid() {
   const grid = document.getElementById('packsGrid');
   grid.innerHTML = '';
   const icons = ['📘','📗','📙','📕','📒','📓','📔','📑'];
-  packs.sort((a,b) => { const d=(b.pinned?1:0)-(a.pinned?1:0); return d!==0?d:(a.name||'').localeCompare(b.name||''); });
+
+  // ── Sort helper: pinned nhóm riêng, trong nhóm sort theo sortOrder ──
+  function sortBySortOrder(arr, pinnedKey) {
+    return [...arr].sort((a, b) => {
+      const pa = a[pinnedKey] ? 1 : 0;
+      const pb = b[pinnedKey] ? 1 : 0;
+      if (pa !== pb) return pb - pa; // pinned lên đầu
+      const oa = a.sortOrder ?? 9999;
+      const ob = b.sortOrder ?? 9999;
+      return oa !== ob ? oa - ob : (a.name || '').localeCompare(b.name || '');
+    });
+  }
 
   if (isAdmin()) {
-    // ── ADMIN: chỉ thấy pack của mình, có nút publish ──
+    // ── ADMIN: pack của mình, có input sortOrder ──
     const addCard = document.createElement('div');
     addCard.className = 'pack-add-card';
     addCard.innerHTML = '<div class="pack-add-icon">⊕</div><div class="pack-add-label">TẠO GÓI MỚI</div>';
     addCard.onclick = () => openPackModal();
     grid.appendChild(addCard);
 
-    packs.forEach((pack, i) => {
-      const total    = pack._wordCount     ?? 0;
-      const mastered = pack._masteredCount ?? 0;
-      const pct = total ? Math.round(mastered / total * 100) : 0;
+    const sorted = sortBySortOrder(packs, 'pinned');
+    sorted.forEach((pack, i) => {
+      const total      = pack._wordCount     ?? 0;
+      const mastered   = pack._masteredCount ?? 0;
+      const pct        = total ? Math.round(mastered / total * 100) : 0;
       const isPublished = !!pack.published;
-      const isPinned = !!pack.pinned;
+      const isPinned    = !!pack.pinned;
+      const orderVal    = pack.sortOrder ?? '';
       const card = document.createElement('div');
-      card.className = 'pack-card' + (isPinned?' pinned':'');
+      card.className = 'pack-card' + (isPinned ? ' pinned' : '');
       card.innerHTML = `
+        <div class="pack-order-num">${orderVal !== '' && orderVal !== 9999 ? '#' + orderVal : '#—'}</div>
         <div class="pack-actions">
           <button class="pack-action-btn edit" onclick="editPack('${pack.id}',event)">✎</button>
           <button class="pack-action-btn" onclick="deletePack('${pack.id}',event)">✕</button>
         </div>
         <div class="pack-icon">${icons[i % icons.length]}</div>
         <div class="pack-name">${h(pack.name)}</div>
-        <div class="pack-meta">${pack.desc ? h(pack.desc)+'<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
+        <div class="pack-meta">${pack.desc ? h(pack.desc) + '<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
         <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%"></div></div>
         <div class="pack-progress-label" style="margin-bottom:10px">${pct}% hoàn thành</div>
-        <button class="btn-publish ${isPublished?'published':''}" onclick="togglePublish('${pack.id}',event)">
+        <button class="btn-publish ${isPublished ? 'published' : ''}" onclick="togglePublish('${pack.id}',event)">
           ${isPublished ? '🌐 Đang public · Bấm để ẩn' : '📤 Publish cho học viên'}
         </button>
-        <div class="pin-toggle-wrap${isPinned?' active':''}" onclick="event.stopPropagation()">
+        <div class="pin-toggle-wrap${isPinned ? ' active' : ''}" onclick="event.stopPropagation()">
           <label class="pin-toggle">
-            <input type="checkbox" ${isPinned?'checked':''} onchange="togglePin('${pack.id}',this)">
+            <input type="checkbox" ${isPinned ? 'checked' : ''} onchange="togglePin('${pack.id}',this)">
             <span class="pin-toggle-track"></span>
           </label>
           <span class="pin-toggle-label">Ghim lên đầu</span>
         </div>
+        <div class="pack-sort-wrap" onclick="event.stopPropagation()">
+          <span class="pack-sort-label">STT</span>
+          <input class="pack-sort-input" type="number" min="1" max="9999"
+            value="${orderVal !== '' && orderVal !== 9999 ? orderVal : ''}"
+            placeholder="—"
+            id="sort-input-${pack.id}">
+          <button class="pack-sort-save" onclick="savePackSortOrder('${pack.id}',this)">Lưu</button>
+        </div>
       `;
       card.addEventListener('click', (e) => {
-        if (e.target.closest('.pack-actions') || e.target.closest('.btn-publish') || e.target.closest('.pin-toggle-wrap')) return;
+        if (e.target.closest('.pack-actions') || e.target.closest('.btn-publish') ||
+            e.target.closest('.pin-toggle-wrap') || e.target.closest('.pack-sort-wrap')) return;
         openPack(pack);
       });
       grid.appendChild(card);
     });
 
   } else {
-    // ── USER: thấy pack của admin (published) + pack riêng ──
+    // ── USER: pack admin (giáo trình) + pack riêng ──
 
-    // Pack của admin — load từ IDB cache, đọc progress thực
     loadAdminPacks().then(async adminPacks => {
       if (!adminPacks.length) return;
       const label = document.createElement('div');
@@ -1852,39 +1901,39 @@ async function renderPacksGrid() {
 
       for (let i = 0; i < adminPacks.length; i++) {
         const pack = adminPacks[i];
-        // Đọc IDB để lấy words + progress thực tế của user
         let idbData = null;
         try { idbData = await IDB.get('ap::' + pack.id); } catch(e) {}
         pack._idbData = idbData;
-        pack._pinned = !!(idbData?._pinned);
+        pack._pinned  = !!(idbData?._pinned);
       }
-      // Sort: pinned lên đầu
-      adminPacks.sort((a,b) => { const d=(b._pinned?1:0)-(a._pinned?1:0); return d!==0?d:(a.name||'').localeCompare(b.name||''); });
 
-      for (let i = 0; i < adminPacks.length; i++) {
-        const pack = adminPacks[i];
+      // Sort theo sortOrder (field từ adminPack), trong nhóm pin/không-pin
+      const sorted = sortBySortOrder(adminPacks, '_pinned');
+
+      for (let i = 0; i < sorted.length; i++) {
+        const pack    = sorted[i];
         const idbData = pack._idbData;
-
-        const total    = idbData?.words?.length ?? (pack.wordCount || 0);
-        const prog     = idbData?._progress || {};
+        const total   = idbData?.words?.length ?? (pack.wordCount || 0);
+        const prog    = idbData?._progress || {};
         const mastered = idbData?.words ? idbData.words.filter(w => prog[w.word]).length : 0;
-        const pct      = total ? Math.round(mastered / total * 100) : 0;
-
+        const pct     = total ? Math.round(mastered / total * 100) : 0;
         const isPinned = !!(idbData?._pinned);
+        const orderVal = pack.sortOrder ?? '';
+
         const card = document.createElement('div');
-        card.className = 'pack-card shared-pack-card' + (isPinned?' pinned':'');
+        card.className = 'pack-card shared-pack-card' + (isPinned ? ' pinned' : '');
         card.innerHTML = `
           <div class="pack-icon">${icons[i % icons.length]}</div>
           <div class="pack-name">${h(pack.name)}</div>
-          <div class="pack-meta">${pack.desc ? h(pack.desc)+'<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
+          <div class="pack-meta">${pack.desc ? h(pack.desc) + '<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
           <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%"></div></div>
           <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
             <div class="pack-progress-label" style="margin-top:0">${pct}% hoàn thành</div>
             <div class="pack-admin-badge">⬡ giáo trình</div>
           </div>
-          <div class="pin-toggle-wrap${isPinned?' active':''}" onclick="event.stopPropagation()">
+          <div class="pin-toggle-wrap${isPinned ? ' active' : ''}" onclick="event.stopPropagation()">
             <label class="pin-toggle">
-              <input type="checkbox" ${isPinned?'checked':''} onchange="toggleAdminPackPin('${pack.id}',this)">
+              <input type="checkbox" ${isPinned ? 'checked' : ''} onchange="toggleAdminPackPin('${pack.id}',this)">
               <span class="pin-toggle-track"></span>
             </label>
             <span class="pin-toggle-label">Ghim lên đầu</span>
@@ -1913,13 +1962,15 @@ async function renderPacksGrid() {
     addCard.onclick = () => openPackModal();
     grid.appendChild(addCard);
 
-    packs.forEach((pack, i) => {
+    const sortedPacks = sortBySortOrder(packs, 'pinned');
+    sortedPacks.forEach((pack, i) => {
       const total    = pack._wordCount     ?? 0;
       const mastered = pack._masteredCount ?? 0;
-      const pct = total ? Math.round(mastered / total * 100) : 0;
+      const pct      = total ? Math.round(mastered / total * 100) : 0;
       const isPinned = !!pack.pinned;
+      const orderVal = pack.sortOrder ?? '';
       const card = document.createElement('div');
-      card.className = 'pack-card' + (isPinned?' pinned':'');
+      card.className = 'pack-card' + (isPinned ? ' pinned' : '');
       card.innerHTML = `
         <div class="pack-actions">
           <button class="pack-action-btn edit" onclick="editPack('${pack.id}',event)">✎</button>
@@ -1927,12 +1978,12 @@ async function renderPacksGrid() {
         </div>
         <div class="pack-icon">${icons[i % icons.length]}</div>
         <div class="pack-name">${h(pack.name)}</div>
-        <div class="pack-meta">${pack.desc ? h(pack.desc)+'<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
+        <div class="pack-meta">${pack.desc ? h(pack.desc) + '<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
         <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%"></div></div>
         <div class="pack-progress-label">${pct}% hoàn thành</div>
-        <div class="pin-toggle-wrap${isPinned?' active':''}" onclick="event.stopPropagation()">
+        <div class="pin-toggle-wrap${isPinned ? ' active' : ''}" onclick="event.stopPropagation()">
           <label class="pin-toggle">
-            <input type="checkbox" ${isPinned?'checked':''} onchange="togglePin('${pack.id}',this)">
+            <input type="checkbox" ${isPinned ? 'checked' : ''} onchange="togglePin('${pack.id}',this)">
             <span class="pin-toggle-track"></span>
           </label>
           <span class="pin-toggle-label">Ghim lên đầu</span>
@@ -2041,6 +2092,34 @@ async function toggleAdminPackPin(id, checkbox) {
   renderPacksGrid();
   showToast('success', isPinned ? '⭐ Đã ghim lên đầu' : '☆ Đã bỏ ghim');
 }
+async function savePackSortOrder(packId, btn) {
+  const input = document.getElementById('sort-input-' + packId);
+  if (!input) return;
+  const val = parseInt(input.value);
+  if (isNaN(val) || val < 1) { showToast('error', '⚠ Nhập số từ 1 trở lên'); return; }
+
+  const pack = packs.find(p => p.id === packId);
+  if (!pack) return;
+  pack.sortOrder = val;
+  await savePacks();
+
+  // Nếu pack đã publish → cập nhật sortOrder trên adminPacks để user thấy đúng thứ tự
+  if (pack.published && navigator.onLine) {
+    window._setDoc(
+      window._doc(window._db, 'adminPacks', packId),
+      { sortOrder: val, updatedAt: Date.now() },
+      { merge: true }
+    ).then(() => _bumpAppVersion()).catch(() => {});
+  }
+
+  // Feedback nút
+  btn.textContent = '✓ Đã lưu';
+  btn.classList.add('saved');
+  setTimeout(() => { btn.textContent = 'Lưu'; btn.classList.remove('saved'); }, 1800);
+
+  renderPacksGrid();
+}
+
 async function deletePack(id, e) {
   e.stopPropagation();
   const p = packs.find(p => p.id === id);
@@ -3270,14 +3349,14 @@ async function togglePublish(packId, e) {
         await window._setDoc(window._doc(window._db, 'adminPacks', packId), {
           id: packId, name: pack.name, desc: pack.desc || '',
           words: ws.map(w => ({ ...w, mastered: false })),
-          wordCount: ws.length,
+          wordCount: ws.length, sortOrder: pack.sortOrder ?? 9999,
           published: true, updatedAt: Date.now()
         });
       } else {
         await window._setDoc(window._doc(window._db, 'adminPacks', packId), {
           id: packId, name: pack.name, desc: pack.desc || '',
           words: words.map(w => ({ ...w, mastered: false })),
-          wordCount: words.length,
+          wordCount: words.length, sortOrder: pack.sortOrder ?? 9999,
           published: true, updatedAt: Date.now()
         });
       }
