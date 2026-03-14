@@ -3384,6 +3384,56 @@ async function statsStopSession() {
   } catch(e) {}
 }
 
+// ============================================================
+//  ACTIVE TIME TRACKER — idle detection 2 phút
+//  Lưu vào Firestore: activeMinutesByDay: { 'YYYY-MM-DD': minutes }
+// ============================================================
+let _activeLastInteraction = 0;
+let _activeAccumSec = 0;          // giây active tích lũy trong ngày (chưa flush)
+let _activeTickTimer = null;
+const ACTIVE_IDLE_SECS = 120;     // 2 phút không tương tác = idle
+
+function activeTimeRecordInteraction() {
+  const now = Date.now();
+  if (_activeLastInteraction > 0) {
+    const gap = (now - _activeLastInteraction) / 1000;
+    if (gap < ACTIVE_IDLE_SECS) {
+      _activeAccumSec += gap;  // khoảng thời gian này là active
+    }
+    // gap >= 2 phút → bỏ qua, không tính
+  }
+  _activeLastInteraction = now;
+
+  // Flush mỗi 60 giây tích lũy
+  if (_activeAccumSec >= 60) {
+    const mins = Math.floor(_activeAccumSec / 60);
+    _activeAccumSec -= mins * 60;
+    _activeTimeFlush(mins);
+  }
+}
+
+async function _activeTimeFlush(mins) {
+  if (!isLoggedIn() || mins < 1) return;
+  try {
+    const today = new Date().toISOString().slice(0,10);
+    const ref = window._doc(window._db, 'users', getUID(), 'xp', 'data');
+    const snap = await window._getDoc(ref).catch(() => null);
+    const d = snap && snap.exists() ? snap.data() : {};
+    const byDay = d.activeMinutesByDay || {};
+    byDay[today] = (byDay[today] || 0) + mins;
+    await window._setDoc(ref, { activeMinutesByDay: byDay }, { merge: true });
+  } catch(e) { console.warn('[ActiveTime] flush error', e); }
+}
+
+// Flush khi rời trang / ẩn tab
+async function activeTimeFlushOnExit() {
+  if (_activeLastInteraction > 0 && _activeAccumSec > 0) {
+    const mins = Math.floor(_activeAccumSec / 60);
+    _activeAccumSec = 0;
+    await _activeTimeFlush(mins);
+  }
+}
+
 // Record a word flip (word seen)
 async function statsRecordFlip() {
   if (!isLoggedIn()) return;
@@ -4143,8 +4193,8 @@ async function _loadMetaFromCache() {
 
 
 // Save study time when user leaves or hides the page
-document.addEventListener('visibilitychange', () => { if (document.hidden) statsStopSession(); });
-window.addEventListener('beforeunload', () => statsStopSession());
+document.addEventListener('visibilitychange', () => { if (document.hidden) { statsStopSession(); activeTimeFlushOnExit(); } });
+window.addEventListener('beforeunload', () => { statsStopSession(); activeTimeFlushOnExit(); });
 
 async function handleAuthChange(user) {
   updateAuthBar();
@@ -4505,16 +4555,19 @@ function xpOnMastered(btnEl) {
   xpAdd(XP_VALUES.MASTERED, 'mastered');
   _xpFloatBadge(XP_VALUES.MASTERED, btnEl);
   xpRecordInteraction();
+  activeTimeRecordInteraction(); // ✦ active time
 }
 
 function xpOnArticleOpen() {
   _xpSession.todayArticles++;
   xpAdd(XP_VALUES.ARTICLE_OPEN, 'article_open');
   xpRecordInteraction();
+  activeTimeRecordInteraction(); // ✦ active time
 }
 
 function xpOnFlashcardAction() {
   xpRecordInteraction();
+  activeTimeRecordInteraction(); // ✦ active time
 }
 
 // ── Tổng kết hôm nay ──
@@ -4658,7 +4711,7 @@ async function showStudyHistory() {
 
       <!-- Chart -->
       <div style="margin-bottom:20px">
-        <div style="font-size:0.58rem;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.25);font-family:'Space Mono',monospace;margin-bottom:10px">Từ đã học — 30 ngày gần nhất</div>
+        <div style="font-size:0.58rem;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.25);font-family:'Space Mono',monospace;margin-bottom:10px">Thời gian active — 30 ngày gần nhất (phút)</div>
         <div style="position:relative;height:140px"><canvas id="shChart"></canvas></div>
       </div>
 
@@ -4700,27 +4753,27 @@ async function showStudyHistory() {
     const totalXP = xpData.total || _xpSession.total || 0;
     const streak  = xpData.loginStreakDays || _xpSession.loginStreakDays || 0;
 
-    // Tổng từ đã thuộc — đọc thẳng từ IDB để có data chính xác
-    // (packs[] metadata không cập nhật admin pack progress)
+    // Tổng từ đang ở trạng thái mastered=true hiện tại
+    // Đọc từ IDB theo đúng các pack user đang có, không scan toàn bộ
     let totalMastered = 0;
     try {
+      // 1. Own packs
+      for (const pack of (packs || [])) {
+        const cached = await IDB.get(pack.id).catch(() => null);
+        if (!cached) continue;
+        const ws = cached.words || [];
+        totalMastered += ws.filter(w => w.mastered && !w.hidden).length;
+      }
+      // 2. Admin packs — _progress phản ánh trạng thái hiện tại
+      //    saveData() rebuild prog từ words.mastered nên reset là sạch
       const allKeys = await IDB.getAllKeys();
-      for (const key of allKeys) {
-        if (key.startsWith('__')) continue;
+      for (const key of allKeys.filter(k => k.startsWith('ap::'))) {
         const cached = await IDB.get(key).catch(() => null);
         if (!cached) continue;
-        if (key.startsWith('ap::')) {
-          // Admin pack: đếm từ _progress object
-          const prog = cached._progress || {};
-          totalMastered += Object.keys(prog).length;
-        } else {
-          // Own pack: đếm words.mastered
-          const ws = cached.words || [];
-          totalMastered += ws.filter(w => w.mastered && !w.hidden).length;
-        }
+        const prog = cached._progress || {};
+        totalMastered += Object.keys(prog).length;
       }
     } catch(e) {
-      // Fallback về metadata nếu IDB lỗi
       if (packs && packs.length) {
         totalMastered = packs.reduce((s, p) => s + (p._masteredCount || 0), 0);
       }
@@ -4732,14 +4785,17 @@ async function showStudyHistory() {
     if (cards[1]) cards[1].textContent = totalMastered;
     if (cards[2]) cards[2].textContent = streak + ' ngày';
 
-    // Build 30 ngày gần nhất cho biểu đồ
+    // activeMinutesByDay từ xpData (lưu trong /users/{uid}/xp/data)
+    const activeByDay = xpData.activeMinutesByDay || {};
+
+    // Build 30 ngày gần nhất
     const labels = [], dataMin = [];
     for (let i = 29; i >= 0; i--) {
       const d2 = new Date(Date.now() - i * 86400000);
       const key = d2.toISOString().slice(0,10);
       const shortLabel = (d2.getMonth()+1) + '/' + d2.getDate();
       labels.push(shortLabel);
-      dataMin.push(studyHistory[key] || 0);
+      dataMin.push(activeByDay[key] || 0);
     }
 
     // Vẽ chart
@@ -4764,7 +4820,7 @@ async function showStudyHistory() {
           bodyColor: '#00f5ff',
           borderColor: 'rgba(0,245,255,0.2)',
           borderWidth: 1,
-          callbacks: { label: ctx => ctx.raw + ' từ đã học' }
+          callbacks: { label: ctx => ctx.raw + ' phút active' }
         }},
         scales: {
           x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: 'rgba(255,255,255,0.2)', font: { size: 9 }, maxTicksLimit: 10 } },
