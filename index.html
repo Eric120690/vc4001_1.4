@@ -1207,61 +1207,165 @@ const IDB = (() => {
   /* ===== ADMIN PANEL ===== */
   .admin-overlay {
     display:none; position:fixed; inset:0; z-index:160;
-    background:rgba(0,0,0,0.8); backdrop-filter:blur(8px);
-    align-items:center; justify-content:center; padding:20px;
+    background:rgba(0,0,0,0.85); backdrop-filter:blur(10px);
+    align-items:center; justify-content:center; padding:16px;
   }
   .admin-overlay.show { display:flex; }
   .admin-panel {
-    background:var(--dark2); border:1px solid rgba(255,230,0,0.2);
-    border-radius:24px; padding:32px; width:100%; max-width:720px; max-height:88vh;
+    background:var(--dark2); border:1px solid rgba(255,230,0,0.15);
+    border-radius:20px; width:100%; max-width:960px; max-height:92vh;
     display:flex; flex-direction:column; animation:fadeUp 0.3s ease;
+    overflow:hidden;
   }
-  .admin-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
+
+  /* ── Admin Top Bar ── */
+  .admin-topbar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 28px 0; flex-shrink:0;
+  }
   .admin-title {
-    font-family:'Syne',sans-serif; font-size:1.3rem; font-weight:800; letter-spacing:0.08em;
+    font-family:'Syne',sans-serif; font-size:1.1rem; font-weight:800; letter-spacing:0.1em;
     background:linear-gradient(90deg, var(--neon-yellow), var(--neon-pink));
     -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    display:flex; align-items:center; gap:8px;
   }
   .admin-close {
-    background:rgba(255,255,255,0.06); border:1px solid var(--glass-border);
-    border-radius:10px; padding:7px 14px; color:rgba(255,255,255,0.4);
-    font-size:0.8rem; cursor:pointer; font-family:'Syne',sans-serif; font-weight:700; transition:all 0.2s;
+    background:rgba(255,255,255,0.05); border:1px solid var(--glass-border);
+    border-radius:8px; padding:6px 14px; color:rgba(255,255,255,0.35);
+    font-size:0.75rem; cursor:pointer; font-family:'Syne',sans-serif; font-weight:700;
+    letter-spacing:0.05em; transition:all 0.2s;
   }
-  .admin-close:hover { background:rgba(255,0,110,0.1); color:var(--neon-pink); border-color:rgba(255,0,110,0.25); }
-  .admin-stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:24px; }
+  .admin-close:hover { background:rgba(255,0,110,0.1); color:var(--neon-pink); border-color:rgba(255,0,110,0.3); }
+
+  /* ── Admin Tab Nav ── */
+  .admin-nav {
+    display:flex; gap:2px; padding:14px 28px 0; flex-shrink:0;
+    border-bottom:1px solid rgba(255,255,255,0.06);
+  }
+  .admin-nav-btn {
+    padding:9px 18px; border-radius:10px 10px 0 0; border:none;
+    background:transparent; color:rgba(255,255,255,0.35);
+    font-family:'Space Mono',monospace; font-size:0.68rem; font-weight:700;
+    letter-spacing:0.08em; cursor:pointer; transition:all 0.2s;
+    display:flex; align-items:center; gap:6px; text-transform:uppercase;
+    position:relative; bottom:-1px;
+  }
+  .admin-nav-btn:hover { color:rgba(255,255,255,0.6); background:rgba(255,255,255,0.03); }
+  .admin-nav-btn.active {
+    background:var(--dark2); color:var(--neon-yellow);
+    border:1px solid rgba(255,255,255,0.06); border-bottom-color:var(--dark2);
+  }
+  .admin-nav-badge {
+    min-width:16px; height:16px; border-radius:99px; padding:0 4px;
+    background:rgba(255,230,0,0.2); color:var(--neon-yellow);
+    font-size:0.58rem; font-weight:800; display:flex; align-items:center; justify-content:center;
+  }
+
+  /* ── Admin Tab Body ── */
+  .admin-body { flex:1; overflow-y:auto; padding:20px 28px 24px; }
+  .admin-body::-webkit-scrollbar { width:4px; }
+  .admin-body::-webkit-scrollbar-thumb { background:rgba(255,230,0,0.15); border-radius:4px; }
+  .admin-tab-content { display:none; }
+  .admin-tab-content.active { display:block; }
+
+  /* ── Stats Row ── */
+  .admin-stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:20px; }
   @media(max-width:520px) { .admin-stats-row { grid-template-columns:1fr 1fr; } }
-  .admin-stat { background:var(--glass); border:1px solid var(--glass-border); border-radius:14px; padding:14px; text-align:center; }
-  .admin-stat-val { font-family:'Syne',sans-serif; font-size:1.6rem; font-weight:800; }
-  .admin-stat-lbl { font-size:0.58rem; letter-spacing:0.2em; text-transform:uppercase; color:rgba(255,255,255,0.3); margin-top:4px; }
+  .admin-stat {
+    background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07);
+    border-radius:12px; padding:14px 16px;
+    display:flex; align-items:center; gap:12px;
+  }
+  .admin-stat-icon { font-size:1.4rem; flex-shrink:0; }
+  .admin-stat-val { font-family:'Syne',sans-serif; font-size:1.5rem; font-weight:800; line-height:1; }
+  .admin-stat-lbl { font-size:0.58rem; letter-spacing:0.15em; text-transform:uppercase; color:rgba(255,255,255,0.3); margin-top:3px; }
   .admin-stat:nth-child(1) .admin-stat-val { color:var(--neon-cyan); }
-  .admin-stat:nth-child(2) .admin-stat-val { color:var(--neon-green); }
-  .admin-stat:nth-child(3) .admin-stat-val { color:var(--neon-yellow); }
+  .admin-stat:nth-child(2) .admin-stat-val { color:var(--neon-yellow); }
+  .admin-stat:nth-child(3) .admin-stat-val { color:var(--neon-green); }
   .admin-stat:nth-child(4) .admin-stat-val { color:var(--neon-pink); }
+
+  /* ── Section Title ── */
+  .admin-section-title {
+    font-family:'Space Mono',monospace; font-size:0.6rem; font-weight:700;
+    letter-spacing:0.25em; text-transform:uppercase; color:rgba(255,255,255,0.2);
+    margin-bottom:10px; display:flex; align-items:center; gap:8px;
+  }
+  .admin-section-title::after { content:''; flex:1; height:1px; background:rgba(255,255,255,0.06); }
+
+  /* ── Users Table ── */
+  .admin-users-toolbar {
+    display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap;
+  }
+  .admin-search {
+    flex:1; min-width:180px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.08);
+    border-radius:8px; padding:9px 14px; color:#fff; font-family:'Inter',sans-serif;
+    font-size:0.8rem; outline:none; transition:border-color 0.2s;
+  }
+  .admin-search:focus { border-color:rgba(255,230,0,0.35); }
+  .admin-search::placeholder { color:rgba(255,255,255,0.18); }
+  .admin-filter-btn {
+    padding:8px 14px; border-radius:8px; border:1px solid rgba(255,255,255,0.08);
+    background:transparent; color:rgba(255,255,255,0.3); font-family:'Space Mono',monospace;
+    font-size:0.65rem; cursor:pointer; transition:all 0.18s; letter-spacing:0.05em;
+    white-space:nowrap;
+  }
+  .admin-filter-btn:hover { border-color:rgba(255,230,0,0.3); color:var(--neon-yellow); }
+  .admin-filter-btn.active { background:rgba(255,230,0,0.1); border-color:rgba(255,230,0,0.35); color:var(--neon-yellow); }
+
+  /* ── User Table ── */
+  .admin-users-table-wrap {
+    border:1px solid rgba(255,255,255,0.06); border-radius:12px; overflow:hidden;
+  }
+  .admin-users-table { width:100%; border-collapse:collapse; }
+  .admin-users-table thead th {
+    padding:10px 14px; text-align:left; font-family:'Space Mono',monospace;
+    font-size:0.58rem; letter-spacing:0.18em; text-transform:uppercase;
+    color:rgba(255,255,255,0.25); background:rgba(0,0,0,0.35);
+    border-bottom:1px solid rgba(255,255,255,0.06); white-space:nowrap;
+  }
+  .admin-users-table thead th:last-child { text-align:right; }
+  .admin-users-table tbody tr {
+    border-bottom:1px solid rgba(255,255,255,0.04);
+    transition:background 0.15s; cursor:pointer;
+  }
+  .admin-users-table tbody tr:last-child { border-bottom:none; }
+  .admin-users-table tbody tr:hover { background:rgba(255,255,255,0.025); }
+  .admin-users-table td { padding:11px 14px; vertical-align:middle; }
+  .admin-users-table td:last-child { text-align:right; }
+
+  .aut-avatar { display:flex; align-items:center; gap:10px; }
+  .aut-ava-img { width:32px; height:32px; border-radius:50%; object-fit:cover; border:1px solid rgba(255,255,255,0.1); flex-shrink:0; }
+  .aut-ava-ph { width:32px; height:32px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,var(--neon-cyan),var(--neon-purple)); display:flex; align-items:center; justify-content:center; font-size:0.72rem; font-weight:800; color:#000; font-family:'Syne',sans-serif; }
+  .aut-name { font-size:0.8rem; font-weight:700; color:#fff; font-family:'Syne',sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px; }
+  .aut-email { font-size:0.62rem; color:rgba(255,255,255,0.3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px; }
+  .aut-stat-num { font-family:'Space Mono',monospace; font-size:0.75rem; font-weight:700; }
+  .aut-stat-num.cyan { color:var(--neon-cyan); }
+  .aut-stat-num.green { color:var(--neon-green); }
+  .aut-stat-lbl { font-size:0.58rem; color:rgba(255,255,255,0.25); }
+  .aut-actions { display:flex; gap:5px; align-items:center; justify-content:flex-end; flex-wrap:nowrap; }
+
+  /* ── Status badges ── */
+  .admin-approve-btn { padding:5px 11px; background:rgba(57,255,20,0.08); border:1px solid rgba(57,255,20,0.25); border-radius:7px; color:var(--neon-green); font-size:0.62rem; font-family:'Syne',sans-serif; font-weight:700; cursor:pointer; transition:all 0.15s; white-space:nowrap; }
+  .admin-approve-btn:hover { background:rgba(57,255,20,0.18); }
+  .admin-revoke-btn { padding:5px 11px; background:rgba(255,230,0,0.07); border:1px solid rgba(255,230,0,0.2); border-radius:7px; color:var(--neon-yellow); font-size:0.62rem; font-family:'Syne',sans-serif; font-weight:700; cursor:pointer; transition:all 0.15s; white-space:nowrap; }
+  .admin-revoke-btn:hover { background:rgba(255,230,0,0.15); }
+  .admin-del-btn { padding:5px 10px; background:rgba(255,0,110,0.05); border:1px solid rgba(255,0,110,0.18); border-radius:7px; color:rgba(255,0,110,0.6); font-size:0.62rem; cursor:pointer; transition:all 0.15s; font-family:'Syne',sans-serif; white-space:nowrap; }
+  .admin-del-btn:hover { background:rgba(255,0,110,0.15); color:var(--neon-pink); border-color:rgba(255,0,110,0.4); }
+  .admin-view-btn { padding:5px 11px; background:rgba(0,245,255,0.06); border:1px solid rgba(0,245,255,0.18); border-radius:7px; color:var(--neon-cyan); font-size:0.62rem; font-family:'Syne',sans-serif; font-weight:700; cursor:pointer; transition:all 0.15s; white-space:nowrap; }
+  .admin-view-btn:hover { background:rgba(0,245,255,0.14); }
+  .status-approved { display:inline-flex; align-items:center; gap:3px; font-size:0.58rem; padding:2px 7px; background:rgba(57,255,20,0.08); border:1px solid rgba(57,255,20,0.2); border-radius:99px; color:var(--neon-green); font-family:'Space Mono',monospace; }
+  .status-pending  { display:inline-flex; align-items:center; gap:3px; font-size:0.58rem; padding:2px 7px; background:rgba(255,230,0,0.08); border:1px solid rgba(255,230,0,0.2); border-radius:99px; color:var(--neon-yellow); font-family:'Space Mono',monospace; }
+  .status-denied   { display:inline-flex; align-items:center; gap:3px; font-size:0.58rem; padding:2px 7px; background:rgba(255,0,110,0.08); border:1px solid rgba(255,0,110,0.2); border-radius:99px; color:var(--neon-pink); font-family:'Space Mono',monospace; }
+  .status-admin    { display:inline-flex; align-items:center; gap:3px; font-size:0.58rem; padding:2px 7px; background:rgba(255,230,0,0.12); border:1px solid rgba(255,230,0,0.35); border-radius:99px; color:var(--neon-yellow); font-family:'Space Mono',monospace; font-weight:700; }
+
+  .admin-loading { text-align:center; padding:40px; color:rgba(255,255,255,0.25); font-size:0.82rem; }
+  .admin-empty-row td { text-align:center; padding:32px; color:rgba(255,255,255,0.2); font-size:0.78rem; }
+
+  /* ── Users old list (kept for detail) ── */
   .admin-users-title { font-family:'Syne',sans-serif; font-size:0.7rem; letter-spacing:0.25em; text-transform:uppercase; color:var(--neon-yellow); margin-bottom:12px; display:flex; align-items:center; gap:8px; }
   .admin-users-title::after { content:''; flex:1; height:1px; background:linear-gradient(90deg,rgba(255,230,0,0.3),transparent); }
-  .admin-users-list { flex:1; overflow-y:auto; border:1px solid var(--glass-border); border-radius:14px; }
-  .admin-users-list::-webkit-scrollbar { width:4px; }
-  .admin-users-list::-webkit-scrollbar-thumb { background:rgba(255,230,0,0.2); border-radius:4px; }
-  .admin-user-row { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.04); transition:background 0.15s; }
-  .admin-user-row:last-child { border-bottom:none; }
-  .admin-user-row:hover { background:rgba(255,255,255,0.02); }
-  .admin-user-ava { width:34px; height:34px; border-radius:50%; object-fit:cover; border:1px solid rgba(255,255,255,0.1); flex-shrink:0; }
-  .admin-user-ava-ph { width:34px; height:34px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,var(--neon-cyan),var(--neon-purple)); display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:800; color:#000; font-family:'Syne',sans-serif; }
-  .admin-user-info { flex:1; min-width:0; }
-  .admin-user-name { font-size:0.8rem; font-weight:700; color:#fff; font-family:'Syne',sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .admin-user-email { font-size:0.65rem; color:rgba(255,255,255,0.35); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .admin-user-stats { font-size:0.65rem; color:rgba(255,255,255,0.3); text-align:right; white-space:nowrap; }
-  .admin-user-stats span { color:var(--neon-cyan); font-weight:700; }
-  .admin-del-btn { background:none; border:1px solid rgba(255,0,110,0.2); border-radius:8px; color:rgba(255,0,110,0.5); padding:5px 9px; font-size:0.65rem; cursor:pointer; transition:all 0.15s; font-family:'Syne',sans-serif; white-space:nowrap; }
-  .admin-del-btn:hover { background:rgba(255,0,110,0.15); color:var(--neon-pink); border-color:rgba(255,0,110,0.4); }
   .admin-btn-admin { background:rgba(255,230,0,0.08); border:1px solid rgba(255,230,0,0.2); border-radius:30px; padding:5px 14px; color:var(--neon-yellow); font-family:'Syne',sans-serif; font-size:0.7rem; font-weight:700; cursor:pointer; transition:all 0.2s; letter-spacing:0.05em; display:flex; align-items:center; gap:6px; }
   .admin-btn-admin:hover { background:rgba(255,230,0,0.15); }
-  .admin-loading { text-align:center; padding:30px; color:rgba(255,255,255,0.3); font-size:0.82rem; }
-  .admin-search { width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--glass-border); border-radius:10px; padding:10px 14px; color:#fff; font-family:'Inter',sans-serif; font-size:0.85rem; outline:none; margin-bottom:12px; transition:border-color 0.2s; }
-  .admin-search:focus { border-color:rgba(255,230,0,0.4); }
-  .admin-search::placeholder { color:rgba(255,255,255,0.2); }
-
-  /* ===== ADMIN USER DETAIL ===== */
   .admin-detail-overlay {
     display:none; position:fixed; inset:0; z-index:170;
     background:rgba(0,0,0,0.85); backdrop-filter:blur(8px);
@@ -1404,21 +1508,82 @@ const IDB = (() => {
 <!-- ===== ADMIN PANEL ===== -->
 <div class="admin-overlay" id="adminOverlay" onclick="closeAdmin(event)">
   <div class="admin-panel">
-    <div class="admin-header">
-      <div class="admin-title">⬡ ADMIN PANEL</div>
+
+    <!-- Top bar -->
+    <div class="admin-topbar">
+      <div class="admin-title">⬡ LEXON ADMIN</div>
       <button class="admin-close" onclick="closeAdminPanel()">✕ Đóng</button>
     </div>
-    <div class="admin-stats-row" id="adminStatsRow">
-      <div class="admin-stat"><div class="admin-stat-val" id="astatUsers">—</div><div class="admin-stat-lbl">Người dùng</div></div>
-      <div class="admin-stat"><div class="admin-stat-val" id="astatPending" style="color:var(--neon-yellow)">—</div><div class="admin-stat-lbl">Chờ duyệt</div></div>
-      <div class="admin-stat"><div class="admin-stat-val" id="astatWords">—</div><div class="admin-stat-lbl">Tổng từ</div></div>
-      <div class="admin-stat"><div class="admin-stat-val" id="astatMastered">—</div><div class="admin-stat-lbl">Đã thuộc</div></div>
+
+    <!-- Tab nav -->
+    <div class="admin-nav">
+      <button class="admin-nav-btn active" id="adminNavDashboard" onclick="switchAdminTab('dashboard',this)">
+        📊 Dashboard
+      </button>
+      <button class="admin-nav-btn" id="adminNavUsers" onclick="switchAdminTab('users',this)">
+        👥 Người dùng
+        <span class="admin-nav-badge" id="adminNavPendingBadge" style="display:none">0</span>
+      </button>
     </div>
-    <div class="admin-users-title">◈ Danh sách người dùng</div>
-    <input class="admin-search" id="adminSearch" placeholder="🔍  Tìm theo tên hoặc email..." oninput="filterAdminUsers()">
-    <div class="admin-users-list" id="adminUsersList">
-      <div class="admin-loading">⟳ Đang tải dữ liệu...</div>
-    </div>
+
+    <!-- Body -->
+    <div class="admin-body">
+
+      <!-- ── TAB: DASHBOARD ── -->
+      <div class="admin-tab-content active" id="adminTab-dashboard">
+        <div class="admin-stats-row" id="adminStatsRow">
+          <div class="admin-stat">
+            <div class="admin-stat-icon">👥</div>
+            <div><div class="admin-stat-val" id="astatUsers">—</div><div class="admin-stat-lbl">Người dùng</div></div>
+          </div>
+          <div class="admin-stat">
+            <div class="admin-stat-icon">⏳</div>
+            <div><div class="admin-stat-val" id="astatPending">—</div><div class="admin-stat-lbl">Chờ duyệt</div></div>
+          </div>
+          <div class="admin-stat">
+            <div class="admin-stat-icon">📚</div>
+            <div><div class="admin-stat-val" id="astatWords">—</div><div class="admin-stat-lbl">Tổng từ</div></div>
+          </div>
+          <div class="admin-stat">
+            <div class="admin-stat-icon">✅</div>
+            <div><div class="admin-stat-val" id="astatMastered">—</div><div class="admin-stat-lbl">Đã thuộc</div></div>
+          </div>
+        </div>
+
+        <!-- Quick pending -->
+        <div class="admin-section-title">⏳ Chờ duyệt truy cập</div>
+        <div id="adminPendingList" style="margin-bottom:0">
+          <div class="admin-loading" style="padding:20px;font-size:0.75rem">Đang tải...</div>
+        </div>
+      </div>
+
+      <!-- ── TAB: USERS ── -->
+      <div class="admin-tab-content" id="adminTab-users">
+        <div class="admin-users-toolbar">
+          <input class="admin-search" id="adminSearch" placeholder="🔍  Tìm theo tên hoặc email..." oninput="applyAdminFilters()">
+          <button class="admin-filter-btn active" id="afilter-all"     onclick="setAdminFilter('all',this)">Tất cả</button>
+          <button class="admin-filter-btn"         id="afilter-pending" onclick="setAdminFilter('pending',this)">⏳ Pending</button>
+          <button class="admin-filter-btn"         id="afilter-approved" onclick="setAdminFilter('approved',this)">✓ Approved</button>
+        </div>
+        <div class="admin-users-table-wrap">
+          <table class="admin-users-table">
+            <thead>
+              <tr>
+                <th>Người dùng</th>
+                <th>Trạng thái</th>
+                <th>Gói / Từ</th>
+                <th>Hoạt động</th>
+                <th>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="adminUsersList">
+              <tr><td colspan="5" style="text-align:center;padding:32px;color:rgba(255,255,255,0.2);font-size:0.78rem">⟳ Đang tải dữ liệu...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /admin-body -->
   </div>
 </div>
 
@@ -1978,7 +2143,7 @@ async function renderPacksGrid() {
             <input type="checkbox" ${isPinned ? 'checked' : ''} onchange="togglePin('${pack.id}',this)">
             <span class="pin-toggle-track"></span>
           </label>
-          <span class="pin-toggle-label">Ghim lên đầu</span>
+          <span class="pin-toggle-label">Pin</span>
         </div>
         <div class="pack-sort-wrap" onclick="event.stopPropagation()">
           <span class="pack-sort-label">STT</span>
@@ -2041,7 +2206,7 @@ async function renderPacksGrid() {
               <input type="checkbox" ${isPinned ? 'checked' : ''} onchange="toggleAdminPackPin('${pack.id}',this)">
               <span class="pin-toggle-track"></span>
             </label>
-            <span class="pin-toggle-label">Ghim lên đầu</span>
+            <span class="pin-toggle-label">Pin</span>
           </div>
         `;
         card.addEventListener('click', (e) => {
@@ -2087,7 +2252,7 @@ async function renderPacksGrid() {
             <input type="checkbox" ${isPinned ? 'checked' : ''} onchange="togglePin('${pack.id}',this)">
             <span class="pin-toggle-track"></span>
           </label>
-          <span class="pin-toggle-label">Ghim lên đầu</span>
+          <span class="pin-toggle-label">Pin</span>
         </div>
       `;
       card.addEventListener('click', (e) => {
@@ -2170,7 +2335,7 @@ async function togglePin(id, checkbox) {
   if (wrap) wrap.classList.toggle('active', p.pinned);
   await savePacks();
   renderPacksGrid();
-  showToast('success', p.pinned ? '⭐ Đã ghim lên đầu' : '☆ Đã bỏ ghim');
+  showToast('success', p.pinned ? '⭐ Đã pinned' : '☆ Đã bỏ ghim');
 }
 
 async function toggleAdminPackPin(id, checkbox) {
@@ -2191,7 +2356,7 @@ async function toggleAdminPackPin(id, checkbox) {
   const wrap = checkbox.closest('.pin-toggle-wrap');
   if (wrap) wrap.classList.toggle('active', isPinned);
   renderPacksGrid();
-  showToast('success', isPinned ? '⭐ Đã ghim lên đầu' : '☆ Đã bỏ ghim');
+  showToast('success', isPinned ? '⭐ Đã pinned' : '☆ Đã bỏ ghim');
 }
 async function savePackSortOrder(packId, btn) {
   const input = document.getElementById('sort-input-' + packId);
@@ -3635,65 +3800,118 @@ async function loadAdminData() {
     _allUsersData.sort((a,b) => b.lastSeen - a.lastSeen);
 
     // Update stats
+    const pendingCount = _allUsersData.filter(u => !u.isAdmin && u.accessStatus !== 'approved').length;
     document.getElementById('astatUsers').textContent = _allUsersData.length;
-    document.getElementById('astatPending').textContent = _allUsersData.filter(u=>u.accessStatus==='pending').length;
+    document.getElementById('astatPending').textContent = pendingCount;
     document.getElementById('astatWords').textContent = totalWords;
     document.getElementById('astatMastered').textContent = totalMastered;
+    // Badge on nav tab
+    const badge = document.getElementById('adminNavPendingBadge');
+    if (badge) { badge.textContent = pendingCount; badge.style.display = pendingCount > 0 ? 'flex' : 'none'; }
 
     renderAdminUsers(_allUsersData);
+    renderAdminPendingList(_allUsersData);
   } catch(e) {
     listEl.innerHTML = `<div class="admin-loading" style="color:var(--neon-pink)">✕ Lỗi tải dữ liệu: ${e.message}</div>`;
   }
 }
 
 function renderAdminUsers(users) {
-  const listEl = document.getElementById('adminUsersList');
+  const tbody = document.getElementById('adminUsersList');
   if (!users.length) {
-    listEl.innerHTML = '<div class="admin-loading">Không tìm thấy người dùng nào.</div>';
+    tbody.innerHTML = '<tr class="admin-empty-row"><td colspan="5">Không tìm thấy người dùng nào.</td></tr>';
     return;
   }
-  listEl.innerHTML = users.map(u => {
-    const initials = u.displayName.charAt(0).toUpperCase();
+  tbody.innerHTML = users.map(u => {
+    const initials = (u.displayName||'?').charAt(0).toUpperCase();
     const avatarHTML = u.photoURL
-      ? `<img src="${u.photoURL}" class="admin-user-ava" referrerpolicy="no-referrer">`
-      : `<div class="admin-user-ava-ph">${initials}</div>`;
+      ? `<img src="${u.photoURL}" class="aut-ava-img" referrerpolicy="no-referrer">`
+      : `<div class="aut-ava-ph">${initials}</div>`;
     const lastSeenStr = u.lastSeen ? new Date(u.lastSeen).toLocaleDateString('vi-VN') : '—';
-    const adminTag = u.isAdmin ? ' <span style="color:var(--neon-yellow);font-size:0.6rem">⬡ ADMIN</span>' : '';
-    const statusBadge = u.isAdmin ? '<span class="status-approved">⬡ admin</span>'
-      : u.accessStatus === 'approved' ? '<span class="status-approved">✓ approved</span>'
+    const statusBadge = u.isAdmin
+      ? '<span class="status-admin">⬡ admin</span>'
+      : u.accessStatus === 'approved' ? '<span class="status-approved">● approved</span>'
       : u.accessStatus === 'denied'   ? '<span class="status-denied">✕ denied</span>'
       : '<span class="status-pending">⏳ pending</span>';
-    const actionBtns = u.isAdmin ? '' : `
-      ${u.accessStatus !== 'approved' ? `<button class="admin-approve-btn" onclick="adminSetAccess('${u.uid}','approved')">✓ Duyệt</button>` : `<button class="admin-revoke-btn" onclick="adminSetAccess('${u.uid}','denied')">⊖ Thu hồi</button>`}
-    `;
-    return `
-      <div class="admin-user-row">
-        ${avatarHTML}
-        <div class="admin-user-info">
-          <div class="admin-user-name">${h(u.displayName)}${adminTag}</div>
-          <div class="admin-user-email">${h(u.email)}</div>
-          <div style="margin-top:3px">${statusBadge}</div>
-        </div>
-        <div class="admin-user-stats">
-          <span>${u.packs}</span> gói · <span>${u.words}</span> từ<br>
-          <span style="color:var(--neon-green)">${u.mastered}</span> đã thuộc<br>
-          <span style="color:rgba(255,255,255,0.2)">${lastSeenStr}</span>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">
-          ${actionBtns}
-          <button class="admin-pack-btn admin-pack-btn-view" onclick="openAdminDetail('${u.uid}')">👁 Chi tiết</button>
-          ${!u.isAdmin ? `<button class="admin-del-btn" onclick="adminDeleteUser('${u.uid}','${h(u.displayName)}')">✕ Xóa</button>` : ''}
-        </div>
+    const actionBtns = u.isAdmin ? '<span style="font-size:0.65rem;color:rgba(255,255,255,0.2)">—</span>' : `
+      <div class="aut-actions">
+        ${u.accessStatus !== 'approved'
+          ? `<button class="admin-approve-btn" onclick="event.stopPropagation();adminSetAccess('${u.uid}','approved')">✓ Duyệt</button>`
+          : `<button class="admin-revoke-btn" onclick="event.stopPropagation();adminSetAccess('${u.uid}','denied')">⊖ Thu hồi</button>`}
+        <button class="admin-view-btn" onclick="event.stopPropagation();openAdminDetail('${u.uid}')">Chi tiết</button>
+        <button class="admin-del-btn" onclick="event.stopPropagation();adminDeleteUser('${u.uid}','${h(u.displayName)}')">✕</button>
       </div>`;
+    return `
+      <tr onclick="openAdminDetail('${u.uid}')">
+        <td>
+          <div class="aut-avatar">
+            ${avatarHTML}
+            <div>
+              <div class="aut-name">${h(u.displayName)}</div>
+              <div class="aut-email">${h(u.email)}</div>
+            </div>
+          </div>
+        </td>
+        <td>${statusBadge}</td>
+        <td>
+          <div><span class="aut-stat-num cyan">${u.packs}</span> <span class="aut-stat-lbl">gói</span></div>
+          <div><span class="aut-stat-num green">${u.mastered}</span><span class="aut-stat-lbl">/${u.words} từ</span></div>
+        </td>
+        <td><span style="font-size:0.7rem;color:rgba(255,255,255,0.3);font-family:'Space Mono',monospace">${lastSeenStr}</span></td>
+        <td>${actionBtns}</td>
+      </tr>`;
   }).join('');
 }
 
-function filterAdminUsers() {
-  const q = document.getElementById('adminSearch').value.toLowerCase();
-  if (!q) { renderAdminUsers(_allUsersData); return; }
-  const filtered = _allUsersData.filter(u =>
-    u.displayName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
-  );
+// ── Render pending list on Dashboard tab ──
+function renderAdminPendingList(users) {
+  const el = document.getElementById('adminPendingList');
+  const pending = users.filter(u => !u.isAdmin && u.accessStatus !== 'approved');
+  if (!pending.length) {
+    el.innerHTML = '<div style="font-size:0.75rem;color:rgba(255,255,255,0.2);padding:14px 0">✓ Không có yêu cầu nào đang chờ.</div>';
+    return;
+  }
+  el.innerHTML = `<div class="admin-users-table-wrap"><table class="admin-users-table">
+    <thead><tr><th>Người dùng</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+    <tbody>${pending.map(u => {
+      const initials = (u.displayName||'?').charAt(0).toUpperCase();
+      const ava = u.photoURL ? `<img src="${u.photoURL}" class="aut-ava-img" referrerpolicy="no-referrer">` : `<div class="aut-ava-ph">${initials}</div>`;
+      const badge = u.accessStatus === 'denied' ? '<span class="status-denied">✕ denied</span>' : '<span class="status-pending">⏳ pending</span>';
+      return `<tr>
+        <td><div class="aut-avatar">${ava}<div><div class="aut-name">${h(u.displayName)}</div><div class="aut-email">${h(u.email)}</div></div></div></td>
+        <td>${badge}</td>
+        <td><div class="aut-actions">
+          <button class="admin-approve-btn" onclick="adminSetAccess('${u.uid}','approved')">✓ Duyệt</button>
+          <button class="admin-del-btn" onclick="adminDeleteUser('${u.uid}','${h(u.displayName)}')">✕</button>
+        </div></td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
+}
+
+// ── Admin tab switcher ──
+function switchAdminTab(tab, btn) {
+  document.querySelectorAll('.admin-tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.admin-nav-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('adminTab-' + tab).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── Admin user filter ──
+let _adminCurrentFilter = 'all';
+function setAdminFilter(filter, btn) {
+  _adminCurrentFilter = filter;
+  document.querySelectorAll('.admin-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  applyAdminFilters();
+}
+
+function applyAdminFilters() {
+  const q = (document.getElementById('adminSearch')?.value || '').toLowerCase();
+  let filtered = _allUsersData;
+  if (_adminCurrentFilter === 'pending') filtered = filtered.filter(u => !u.isAdmin && u.accessStatus !== 'approved');
+  if (_adminCurrentFilter === 'approved') filtered = filtered.filter(u => u.isAdmin || u.accessStatus === 'approved');
+  if (q) filtered = filtered.filter(u => u.displayName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
   renderAdminUsers(filtered);
 }
 
@@ -3710,8 +3928,14 @@ async function adminDeleteUser(uid, name) {
     }
     await window._deleteDoc(window._doc(window._db,'users',uid));
     _allUsersData = _allUsersData.filter(u => u.uid !== uid);
-    renderAdminUsers(_allUsersData);
+    applyAdminFilters();
+    renderAdminPendingList(_allUsersData);
+    const pendingCount = _allUsersData.filter(u => !u.isAdmin && u.accessStatus !== 'approved').length;
     document.getElementById('astatUsers').textContent = _allUsersData.length;
+    document.getElementById('astatPending').textContent = pendingCount;
+    const badge = document.getElementById('adminNavPendingBadge');
+    if (badge) { badge.textContent = pendingCount; badge.style.display = pendingCount > 0 ? 'flex' : 'none'; }
+    showToast('success','✓ Đã xóa người dùng');
   } catch(e) {
     alert('Lỗi xóa user: ' + e.message);
   }
@@ -3722,8 +3946,12 @@ async function adminSetAccess(uid, status) {
     await window._setDoc(window._doc(window._db,'users',uid), { accessStatus: status }, { merge: true });
     const u = _allUsersData.find(x => x.uid === uid);
     if (u) u.accessStatus = status;
-    const q = document.getElementById('adminSearch').value;
-    filterAdminUsers();
+    applyAdminFilters();
+    renderAdminPendingList(_allUsersData);
+    const pendingCount = _allUsersData.filter(u => !u.isAdmin && u.accessStatus !== 'approved').length;
+    document.getElementById('astatPending').textContent = pendingCount;
+    const badge = document.getElementById('adminNavPendingBadge');
+    if (badge) { badge.textContent = pendingCount; badge.style.display = pendingCount > 0 ? 'flex' : 'none'; }
     const label = status === 'approved' ? '✓ Đã cấp quyền' : '⊖ Đã thu hồi quyền';
     // Flash notification
     const notif = document.createElement('div');
