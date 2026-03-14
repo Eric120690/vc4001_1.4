@@ -1204,62 +1204,108 @@ const IDB = (() => {
   .profile-hist-date { color:rgba(255,255,255,0.4); }
   .profile-hist-val  { color:var(--neon-cyan); font-weight:700; }
 
-  /* ===== ADMIN PANEL ===== */
+  /* ===== ADMIN PANEL — redesigned ===== */
   .admin-overlay {
     display:none; position:fixed; inset:0; z-index:160;
-    background:rgba(0,0,0,0.8); backdrop-filter:blur(8px);
-    align-items:center; justify-content:center; padding:20px;
+    background:rgba(0,0,0,0.85); backdrop-filter:blur(10px);
+    align-items:flex-start; justify-content:center; padding:0;
+    overflow-y:auto;
   }
   .admin-overlay.show { display:flex; }
   .admin-panel {
-    background:var(--dark2); border:1px solid rgba(255,230,0,0.2);
-    border-radius:24px; padding:32px; width:100%; max-width:720px; max-height:88vh;
-    display:flex; flex-direction:column; animation:fadeUp 0.3s ease;
+    background:var(--dark2); border-left:1px solid rgba(255,230,0,0.15);
+    border-right:1px solid rgba(255,230,0,0.15);
+    width:100%; max-width:1000px; min-height:100vh;
+    display:flex; flex-direction:column; margin:0 auto;
+    padding:0 0 60px;
   }
-  .admin-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
+  /* Top bar */
+  .admin-topbar {
+    position:sticky; top:0; z-index:10;
+    background:rgba(13,13,31,0.97); backdrop-filter:blur(12px);
+    border-bottom:1px solid rgba(255,230,0,0.12);
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 32px;
+  }
   .admin-title {
-    font-family:'Syne',sans-serif; font-size:1.3rem; font-weight:800; letter-spacing:0.08em;
+    font-family:'Syne',sans-serif; font-size:1.1rem; font-weight:800; letter-spacing:0.1em;
     background:linear-gradient(90deg, var(--neon-yellow), var(--neon-pink));
     -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
   }
   .admin-close {
     background:rgba(255,255,255,0.06); border:1px solid var(--glass-border);
-    border-radius:10px; padding:7px 14px; color:rgba(255,255,255,0.4);
-    font-size:0.8rem; cursor:pointer; font-family:'Syne',sans-serif; font-weight:700; transition:all 0.2s;
+    border-radius:10px; padding:8px 18px; color:rgba(255,255,255,0.5);
+    font-size:0.78rem; cursor:pointer; font-family:'Syne',sans-serif; font-weight:700; transition:all 0.2s;
   }
   .admin-close:hover { background:rgba(255,0,110,0.1); color:var(--neon-pink); border-color:rgba(255,0,110,0.25); }
-  .admin-stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:24px; }
-  @media(max-width:520px) { .admin-stats-row { grid-template-columns:1fr 1fr; } }
-  .admin-stat { background:var(--glass); border:1px solid var(--glass-border); border-radius:14px; padding:14px; text-align:center; }
-  .admin-stat-val { font-family:'Syne',sans-serif; font-size:1.6rem; font-weight:800; }
-  .admin-stat-lbl { font-size:0.58rem; letter-spacing:0.2em; text-transform:uppercase; color:rgba(255,255,255,0.3); margin-top:4px; }
+  /* Main tabs */
+  .admin-main-tabs {
+    display:flex; gap:2px; padding:0 32px;
+    border-bottom:1px solid rgba(255,255,255,0.05);
+    background:rgba(0,0,0,0.2);
+  }
+  .admin-main-tab {
+    padding:14px 22px; background:transparent; border:none; border-bottom:2px solid transparent;
+    color:rgba(255,255,255,0.35); font-family:'Syne',sans-serif; font-size:0.72rem;
+    font-weight:700; letter-spacing:0.08em; cursor:pointer; transition:all 0.2s;
+    text-transform:uppercase; margin-bottom:-1px;
+  }
+  .admin-main-tab:hover { color:rgba(255,255,255,0.6); }
+  .admin-main-tab.active { color:var(--neon-yellow); border-bottom-color:var(--neon-yellow); }
+  /* Tab panels */
+  .admin-tab-panel { display:none; padding:28px 32px; }
+  .admin-tab-panel.active { display:block; }
+  /* Stats row */
+  .admin-stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:28px; }
+  @media(max-width:600px) { .admin-stats-row { grid-template-columns:1fr 1fr; } }
+  .admin-stat { background:var(--glass); border:1px solid var(--glass-border); border-radius:16px; padding:18px 16px; text-align:center; }
+  .admin-stat-val { font-family:'Syne',sans-serif; font-size:1.8rem; font-weight:800; }
+  .admin-stat-lbl { font-size:0.55rem; letter-spacing:0.2em; text-transform:uppercase; color:rgba(255,255,255,0.3); margin-top:5px; }
   .admin-stat:nth-child(1) .admin-stat-val { color:var(--neon-cyan); }
   .admin-stat:nth-child(2) .admin-stat-val { color:var(--neon-green); }
   .admin-stat:nth-child(3) .admin-stat-val { color:var(--neon-yellow); }
   .admin-stat:nth-child(4) .admin-stat-val { color:var(--neon-pink); }
+  /* Section label */
+  .admin-section-lbl { font-family:'Syne',sans-serif; font-size:0.62rem; letter-spacing:0.25em; text-transform:uppercase; color:rgba(255,255,255,0.25); margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+  .admin-section-lbl::after { content:''; flex:1; height:1px; background:rgba(255,255,255,0.06); }
+  /* Users list */
   .admin-users-title { font-family:'Syne',sans-serif; font-size:0.7rem; letter-spacing:0.25em; text-transform:uppercase; color:var(--neon-yellow); margin-bottom:12px; display:flex; align-items:center; gap:8px; }
   .admin-users-title::after { content:''; flex:1; height:1px; background:linear-gradient(90deg,rgba(255,230,0,0.3),transparent); }
-  .admin-users-list { flex:1; overflow-y:auto; border:1px solid var(--glass-border); border-radius:14px; }
+  .admin-users-list { border:1px solid var(--glass-border); border-radius:16px; overflow:hidden; }
   .admin-users-list::-webkit-scrollbar { width:4px; }
   .admin-users-list::-webkit-scrollbar-thumb { background:rgba(255,230,0,0.2); border-radius:4px; }
-  .admin-user-row { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.04); transition:background 0.15s; }
+  .admin-user-row { display:flex; align-items:center; gap:14px; padding:14px 20px; border-bottom:1px solid rgba(255,255,255,0.04); transition:background 0.15s; }
   .admin-user-row:last-child { border-bottom:none; }
   .admin-user-row:hover { background:rgba(255,255,255,0.02); }
-  .admin-user-ava { width:34px; height:34px; border-radius:50%; object-fit:cover; border:1px solid rgba(255,255,255,0.1); flex-shrink:0; }
-  .admin-user-ava-ph { width:34px; height:34px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,var(--neon-cyan),var(--neon-purple)); display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:800; color:#000; font-family:'Syne',sans-serif; }
+  .admin-user-ava { width:38px; height:38px; border-radius:50%; object-fit:cover; border:1px solid rgba(255,255,255,0.1); flex-shrink:0; }
+  .admin-user-ava-ph { width:38px; height:38px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,var(--neon-cyan),var(--neon-purple)); display:flex; align-items:center; justify-content:center; font-size:0.85rem; font-weight:800; color:#000; font-family:'Syne',sans-serif; }
   .admin-user-info { flex:1; min-width:0; }
-  .admin-user-name { font-size:0.8rem; font-weight:700; color:#fff; font-family:'Syne',sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .admin-user-email { font-size:0.65rem; color:rgba(255,255,255,0.35); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .admin-user-stats { font-size:0.65rem; color:rgba(255,255,255,0.3); text-align:right; white-space:nowrap; }
+  .admin-user-name { font-size:0.85rem; font-weight:700; color:#fff; font-family:'Syne',sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .admin-user-email { font-size:0.68rem; color:rgba(255,255,255,0.35); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
+  .admin-user-stats { font-size:0.68rem; color:rgba(255,255,255,0.3); text-align:right; white-space:nowrap; line-height:1.8; }
   .admin-user-stats span { color:var(--neon-cyan); font-weight:700; }
-  .admin-del-btn { background:none; border:1px solid rgba(255,0,110,0.2); border-radius:8px; color:rgba(255,0,110,0.5); padding:5px 9px; font-size:0.65rem; cursor:pointer; transition:all 0.15s; font-family:'Syne',sans-serif; white-space:nowrap; }
+  .admin-del-btn { background:none; border:1px solid rgba(255,0,110,0.2); border-radius:8px; color:rgba(255,0,110,0.5); padding:6px 10px; font-size:0.65rem; cursor:pointer; transition:all 0.15s; font-family:'Syne',sans-serif; white-space:nowrap; }
   .admin-del-btn:hover { background:rgba(255,0,110,0.15); color:var(--neon-pink); border-color:rgba(255,0,110,0.4); }
   .admin-btn-admin { background:rgba(255,230,0,0.08); border:1px solid rgba(255,230,0,0.2); border-radius:30px; padding:5px 14px; color:var(--neon-yellow); font-family:'Syne',sans-serif; font-size:0.7rem; font-weight:700; cursor:pointer; transition:all 0.2s; letter-spacing:0.05em; display:flex; align-items:center; gap:6px; }
   .admin-btn-admin:hover { background:rgba(255,230,0,0.15); }
-  .admin-loading { text-align:center; padding:30px; color:rgba(255,255,255,0.3); font-size:0.82rem; }
-  .admin-search { width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--glass-border); border-radius:10px; padding:10px 14px; color:#fff; font-family:'Inter',sans-serif; font-size:0.85rem; outline:none; margin-bottom:12px; transition:border-color 0.2s; }
+  .admin-loading { text-align:center; padding:40px; color:rgba(255,255,255,0.3); font-size:0.82rem; }
+  .admin-search { width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--glass-border); border-radius:12px; padding:12px 16px; color:#fff; font-family:'Inter',sans-serif; font-size:0.88rem; outline:none; margin-bottom:16px; transition:border-color 0.2s; }
   .admin-search:focus { border-color:rgba(255,230,0,0.4); }
   .admin-search::placeholder { color:rgba(255,255,255,0.2); }
+  /* Settings tab */
+  .admin-settings-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  @media(max-width:600px) { .admin-settings-grid { grid-template-columns:1fr; } }
+  .admin-settings-card { background:var(--glass); border:1px solid var(--glass-border); border-radius:16px; padding:22px 24px; }
+  .admin-settings-card-title { font-family:'Syne',sans-serif; font-size:0.72rem; font-weight:800; letter-spacing:0.15em; text-transform:uppercase; color:rgba(255,255,255,0.4); margin-bottom:18px; display:flex; align-items:center; gap:8px; }
+  .admin-settings-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+  .admin-settings-row:last-child { border-bottom:none; padding-bottom:0; }
+  .admin-settings-label { font-size:0.8rem; color:rgba(255,255,255,0.65); }
+  .admin-settings-sub { font-size:0.62rem; color:rgba(255,255,255,0.25); margin-top:2px; }
+  .admin-xp-input { width:70px; background:rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.12); border-radius:8px; padding:6px 10px; color:var(--neon-cyan); font-family:'Space Mono',monospace; font-size:0.85rem; font-weight:700; text-align:center; outline:none; transition:border-color 0.2s; }
+  .admin-xp-input:focus { border-color:rgba(0,245,255,0.4); }
+  .admin-save-btn { margin-top:20px; width:100%; padding:12px; background:rgba(255,230,0,0.1); border:1px solid rgba(255,230,0,0.3); border-radius:10px; color:var(--neon-yellow); font-family:'Syne',sans-serif; font-size:0.78rem; font-weight:800; letter-spacing:0.1em; cursor:pointer; transition:all 0.2s; text-transform:uppercase; }
+  .admin-save-btn:hover { background:rgba(255,230,0,0.18); }
+  .admin-save-btn.saved { background:rgba(57,255,20,0.1); border-color:rgba(57,255,20,0.3); color:var(--neon-green); }
 
   /* ===== ADMIN USER DETAIL ===== */
   .admin-detail-overlay {
@@ -1402,23 +1448,97 @@ const IDB = (() => {
 </div>
 
 <!-- ===== ADMIN PANEL ===== -->
-<div class="admin-overlay" id="adminOverlay" onclick="closeAdmin(event)">
+<div class="admin-overlay" id="adminOverlay">
   <div class="admin-panel">
-    <div class="admin-header">
-      <div class="admin-title">⬡ ADMIN PANEL</div>
+    <!-- Top bar -->
+    <div class="admin-topbar">
+      <div class="admin-title">⬡ LEXON ADMIN</div>
       <button class="admin-close" onclick="closeAdminPanel()">✕ Đóng</button>
     </div>
-    <div class="admin-stats-row" id="adminStatsRow">
-      <div class="admin-stat"><div class="admin-stat-val" id="astatUsers">—</div><div class="admin-stat-lbl">Người dùng</div></div>
-      <div class="admin-stat"><div class="admin-stat-val" id="astatPending" style="color:var(--neon-yellow)">—</div><div class="admin-stat-lbl">Chờ duyệt</div></div>
-      <div class="admin-stat"><div class="admin-stat-val" id="astatWords">—</div><div class="admin-stat-lbl">Tổng từ</div></div>
-      <div class="admin-stat"><div class="admin-stat-val" id="astatMastered">—</div><div class="admin-stat-lbl">Đã thuộc</div></div>
+    <!-- Main tabs -->
+    <div class="admin-main-tabs">
+      <button class="admin-main-tab active" id="adminTab-users" onclick="switchAdminTab('users')">◈ Người dùng</button>
+      <button class="admin-main-tab" id="adminTab-settings" onclick="switchAdminTab('settings')">⚙ Cài đặt</button>
     </div>
-    <div class="admin-users-title">◈ Danh sách người dùng</div>
-    <input class="admin-search" id="adminSearch" placeholder="🔍  Tìm theo tên hoặc email..." oninput="filterAdminUsers()">
-    <div class="admin-users-list" id="adminUsersList">
-      <div class="admin-loading">⟳ Đang tải dữ liệu...</div>
+
+    <!-- TAB: Người dùng -->
+    <div class="admin-tab-panel active" id="adminPanel-users">
+      <div class="admin-stats-row" id="adminStatsRow">
+        <div class="admin-stat"><div class="admin-stat-val" id="astatUsers">—</div><div class="admin-stat-lbl">Người dùng</div></div>
+        <div class="admin-stat"><div class="admin-stat-val" id="astatPending" style="color:var(--neon-yellow)">—</div><div class="admin-stat-lbl">Chờ duyệt</div></div>
+        <div class="admin-stat"><div class="admin-stat-val" id="astatWords">—</div><div class="admin-stat-lbl">Tổng từ</div></div>
+        <div class="admin-stat"><div class="admin-stat-val" id="astatMastered">—</div><div class="admin-stat-lbl">Đã thuộc</div></div>
+      </div>
+      <div class="admin-users-title">◈ Danh sách người dùng</div>
+      <input class="admin-search" id="adminSearch" placeholder="🔍  Tìm theo tên hoặc email..." oninput="filterAdminUsers()">
+      <div class="admin-users-list" id="adminUsersList">
+        <div class="admin-loading">⟳ Đang tải dữ liệu...</div>
+      </div>
     </div>
+
+    <!-- TAB: Cài đặt -->
+    <div class="admin-tab-panel" id="adminPanel-settings">
+      <div class="admin-settings-grid">
+
+        <!-- Card 1: XP Values -->
+        <div class="admin-settings-card">
+          <div class="admin-settings-card-title">✦ Điểm XP mỗi hành động</div>
+          <div class="admin-settings-row">
+            <div><div class="admin-settings-label">Đăng nhập hàng ngày</div><div class="admin-settings-sub">Mỗi lần login mới trong ngày</div></div>
+            <input class="admin-xp-input" id="xpSet-LOGIN_DAILY" type="number" min="0" max="100" value="5">
+          </div>
+          <div class="admin-settings-row">
+            <div><div class="admin-settings-label">Bấm "Đã thuộc"</div><div class="admin-settings-sub">Mỗi lần mark mastered</div></div>
+            <input class="admin-xp-input" id="xpSet-MASTERED" type="number" min="0" max="100" value="10">
+          </div>
+          <div class="admin-settings-row">
+            <div><div class="admin-settings-label">10 phút active</div><div class="admin-settings-sub">Mỗi 10 phút tương tác thật</div></div>
+            <input class="admin-xp-input" id="xpSet-ACTIVE_10MIN" type="number" min="0" max="100" value="8">
+          </div>
+          <div class="admin-settings-row">
+            <div><div class="admin-settings-label">Mở article context</div><div class="admin-settings-sub">Đọc ngữ cảnh bài báo</div></div>
+            <input class="admin-xp-input" id="xpSet-ARTICLE_OPEN" type="number" min="0" max="100" value="5">
+          </div>
+          <div class="admin-settings-row">
+            <div><div class="admin-settings-label">Vào học (mở pack)</div><div class="admin-settings-sub">1 lần/ngày/pack</div></div>
+            <input class="admin-xp-input" id="xpSet-OPEN_PACK" type="number" min="0" max="100" value="3">
+          </div>
+          <button class="admin-save-btn" id="adminSaveXP" onclick="adminSaveXPValues()">✓ Lưu cài đặt XP</button>
+        </div>
+
+        <!-- Card 2: Chúc mừng theo từ đã thuộc -->
+        <div class="admin-settings-card">
+          <div class="admin-settings-card-title">🎉 Chúc mừng theo từ đã thuộc</div>
+          <div class="admin-settings-row">
+            <div><div class="admin-settings-label">Cứ mỗi N từ đã thuộc</div><div class="admin-settings-sub">Hiện hiệu ứng chúc mừng</div></div>
+            <input class="admin-xp-input" id="xpSet-CELEBRATE_EVERY" type="number" min="1" max="50" value="5">
+          </div>
+          <div style="margin-top:16px;padding:12px 14px;background:rgba(0,0,0,0.25);border-radius:10px;font-size:0.72rem;color:rgba(255,255,255,0.4);line-height:1.8">
+            Ví dụ: đặt <strong style="color:var(--neon-cyan)">5</strong> → hiện thông báo khi thuộc được 5, 10, 15, 20... từ<br>
+            Thông báo: <em style="color:rgba(255,255,255,0.55)">"Chúc mừng! Bạn đã thuộc thêm 5 từ 🎉"</em>
+          </div>
+          <div class="admin-settings-row" style="margin-top:8px">
+            <div><div class="admin-settings-label">Streak bonus — 3 ngày</div></div>
+            <input class="admin-xp-input" id="xpSet-STREAK_3" type="number" min="0" max="50" value="2">
+          </div>
+          <div class="admin-settings-row">
+            <div><div class="admin-settings-label">Streak bonus — 7 ngày</div></div>
+            <input class="admin-xp-input" id="xpSet-STREAK_7" type="number" min="0" max="50" value="5">
+          </div>
+          <div class="admin-settings-row">
+            <div><div class="admin-settings-label">Streak bonus — 14 ngày</div></div>
+            <input class="admin-xp-input" id="xpSet-STREAK_14" type="number" min="0" max="50" value="10">
+          </div>
+          <div class="admin-settings-row">
+            <div><div class="admin-settings-label">Streak bonus — 21 ngày</div></div>
+            <input class="admin-xp-input" id="xpSet-STREAK_21" type="number" min="0" max="50" value="20">
+          </div>
+          <button class="admin-save-btn" id="adminSaveCelebrate" onclick="adminSaveCelebrateSettings()">✓ Lưu cài đặt chúc mừng</button>
+        </div>
+
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -3637,7 +3757,9 @@ let _allUsersData = [];
 async function openAdminPanel() {
   if (!isAdmin()) return;
   document.getElementById('adminOverlay').classList.add('show');
+  switchAdminTab('users');
   await loadAdminData();
+  _adminLoadSettingsUI();
 }
 
 function closeAdminPanel() {
@@ -3646,6 +3768,76 @@ function closeAdminPanel() {
 
 function closeAdmin(e) {
   if (e.target === document.getElementById('adminOverlay')) closeAdminPanel();
+}
+
+function switchAdminTab(tab) {
+  ['users','settings'].forEach(t => {
+    document.getElementById('adminTab-' + t)?.classList.toggle('active', t === tab);
+    document.getElementById('adminPanel-' + t)?.classList.toggle('active', t === tab);
+  });
+}
+
+function _adminLoadSettingsUI() {
+  // Load current XP values vào inputs
+  const v = XP_VALUES;
+  const set = (id, val) => { const el = document.getElementById(id); if(el) el.value = val; };
+  set('xpSet-LOGIN_DAILY',   v.LOGIN_DAILY);
+  set('xpSet-MASTERED',      v.MASTERED);
+  set('xpSet-ACTIVE_10MIN',  v.ACTIVE_10MIN);
+  set('xpSet-ARTICLE_OPEN',  v.ARTICLE_OPEN);
+  set('xpSet-OPEN_PACK',     v.OPEN_PACK);
+  set('xpSet-CELEBRATE_EVERY', CELEBRATE_EVERY);
+  set('xpSet-STREAK_3',  v.STREAK_BONUS[3]  || 2);
+  set('xpSet-STREAK_7',  v.STREAK_BONUS[7]  || 5);
+  set('xpSet-STREAK_14', v.STREAK_BONUS[14] || 10);
+  set('xpSet-STREAK_21', v.STREAK_BONUS[21] || 20);
+}
+
+async function adminSaveXPValues() {
+  if (!isAdmin()) return;
+  const get = id => parseInt(document.getElementById(id)?.value) || 0;
+  XP_VALUES.LOGIN_DAILY  = get('xpSet-LOGIN_DAILY');
+  XP_VALUES.MASTERED     = get('xpSet-MASTERED');
+  XP_VALUES.ACTIVE_10MIN = get('xpSet-ACTIVE_10MIN');
+  XP_VALUES.ARTICLE_OPEN = get('xpSet-ARTICLE_OPEN');
+  XP_VALUES.OPEN_PACK    = get('xpSet-OPEN_PACK');
+  try {
+    await window._setDoc(
+      window._doc(window._db, 'appConfig', 'scoring'),
+      { xpValues: {
+          LOGIN_DAILY:  XP_VALUES.LOGIN_DAILY,
+          MASTERED:     XP_VALUES.MASTERED,
+          ACTIVE_10MIN: XP_VALUES.ACTIVE_10MIN,
+          ARTICLE_OPEN: XP_VALUES.ARTICLE_OPEN,
+          OPEN_PACK:    XP_VALUES.OPEN_PACK,
+        }
+      }, { merge: true }
+    );
+    const btn = document.getElementById('adminSaveXP');
+    if (btn) { btn.textContent = '✓ Đã lưu!'; btn.classList.add('saved'); setTimeout(() => { btn.textContent = '✓ Lưu cài đặt XP'; btn.classList.remove('saved'); }, 2000); }
+  } catch(e) { alert('Lỗi lưu: ' + e.message); }
+}
+
+async function adminSaveCelebrateSettings() {
+  if (!isAdmin()) return;
+  const get = id => parseInt(document.getElementById(id)?.value) || 0;
+  CELEBRATE_EVERY = get('xpSet-CELEBRATE_EVERY') || 5;
+  XP_VALUES.STREAK_BONUS = {
+    3:  get('xpSet-STREAK_3'),
+    7:  get('xpSet-STREAK_7'),
+    14: get('xpSet-STREAK_14'),
+    21: get('xpSet-STREAK_21'),
+  };
+  try {
+    await window._setDoc(
+      window._doc(window._db, 'appConfig', 'scoring'),
+      { celebrateEvery: CELEBRATE_EVERY,
+        xpValues: { STREAK_BONUS: XP_VALUES.STREAK_BONUS }
+      }, { merge: true }
+    );
+    const btn = document.getElementById('adminSaveCelebrate');
+    if (btn) { btn.textContent = '✓ Đã lưu!'; btn.classList.add('saved'); setTimeout(() => { btn.textContent = '✓ Lưu cài đặt chúc mừng'; btn.classList.remove('saved'); }, 2000); }
+  } catch(e) { alert('Lỗi lưu: ' + e.message); }
 }
 
 async function loadAdminData() {
@@ -4323,13 +4515,36 @@ const XP_VALUES = {
   STREAK_BONUS: { 3:2, 7:5, 14:10, 21:20 }, // bonus ngày streak liên tiếp
 };
 
-// Milestones: 10, 20, 50, 100, 150, 200, ...
+// Milestones XP (vẫn giữ để dùng trong history chart)
 function _getMilestones() {
   const ms = [10, 20, 50];
   for (let i = 100; i <= 9950; i += 50) ms.push(i);
   return ms;
 }
 const XP_MILESTONES = _getMilestones();
+
+// Celebrate config — load từ Firestore appConfig, fallback về default
+let CELEBRATE_EVERY = 5;  // cứ N từ đã thuộc → chúc mừng
+let _totalMasteredSession = 0; // đếm tổng từ đã thuộc trong session (kể cả reset)
+
+async function _loadAppConfig() {
+  try {
+    const ref = window._doc(window._db, 'appConfig', 'scoring');
+    const snap = await window._getDoc(ref);
+    if (snap.exists()) {
+      const d = snap.data();
+      if (d.xpValues) {
+        if (d.xpValues.LOGIN_DAILY  !== undefined) XP_VALUES.LOGIN_DAILY  = d.xpValues.LOGIN_DAILY;
+        if (d.xpValues.MASTERED     !== undefined) XP_VALUES.MASTERED     = d.xpValues.MASTERED;
+        if (d.xpValues.ACTIVE_10MIN !== undefined) XP_VALUES.ACTIVE_10MIN = d.xpValues.ACTIVE_10MIN;
+        if (d.xpValues.ARTICLE_OPEN !== undefined) XP_VALUES.ARTICLE_OPEN = d.xpValues.ARTICLE_OPEN;
+        if (d.xpValues.OPEN_PACK    !== undefined) XP_VALUES.OPEN_PACK    = d.xpValues.OPEN_PACK;
+        if (d.xpValues.STREAK_BONUS !== undefined) XP_VALUES.STREAK_BONUS = d.xpValues.STREAK_BONUS;
+      }
+      if (d.celebrateEvery !== undefined) CELEBRATE_EVERY = d.celebrateEvery;
+    }
+  } catch(e) { console.warn('[AppConfig] load error', e); }
+}
 
 // State
 let _xpSession = {
@@ -4390,19 +4605,12 @@ function xpAdd(amount, reason) {
   _xpSession.todayXP += amount;
   _xpScheduleSave();
 
-  // Kiểm tra milestone
-  for (const ms of XP_MILESTONES) {
-    if (prev < ms && _xpSession.total >= ms) {
-      _xpFireMilestone(ms);
-      break;
-    }
-  }
+  // XP milestone tracking (dùng cho history chart)
+  // Celebration theo từ được xử lý riêng trong xpOnMastered
 }
 
-// ── Milestone celebration ──
-function _xpFireMilestone(ms) {
-  // Chỉ hiện khi đang có tương tác (không tự nhiên chớp)
-  // → gọi từ trong action nên luôn đúng context
+// ── Celebration theo từ đã thuộc ──
+function _fireMasteredCelebration(total, every) {
   const el = document.createElement('div');
   el.id = 'xp-milestone-toast';
   el.innerHTML = `
@@ -4410,16 +4618,18 @@ function _xpFireMilestone(ms) {
       position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(0.8);
       z-index:99999; text-align:center;
       background:rgba(5,5,15,0.95);
-      border:1.5px solid rgba(255,230,0,0.5);
+      border:1.5px solid rgba(57,255,20,0.5);
       border-radius:20px; padding:28px 40px;
       font-family:'Syne',sans-serif;
-      box-shadow:0 0 60px rgba(255,230,0,0.2);
+      box-shadow:0 0 60px rgba(57,255,20,0.15);
       animation: xpMilestoneIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275) forwards;
     ">
-      <div style="font-size:2.2rem;margin-bottom:8px">✦</div>
-      <div style="font-size:0.6rem;letter-spacing:0.25em;text-transform:uppercase;color:rgba(255,230,0,0.6);margin-bottom:6px">Cột mốc đạt được</div>
-      <div style="font-size:2.8rem;font-weight:800;color:var(--neon-yellow);line-height:1">${ms}</div>
-      <div style="font-size:0.75rem;color:rgba(255,255,255,0.4);margin-top:6px">điểm tích lũy</div>
+      <div style="font-size:2.2rem;margin-bottom:8px">🎉</div>
+      <div style="font-size:0.6rem;letter-spacing:0.25em;text-transform:uppercase;color:rgba(57,255,20,0.7);margin-bottom:8px">Chúc mừng!</div>
+      <div style="font-size:1rem;font-weight:800;color:#fff;line-height:1.4">Bạn đã thuộc thêm</div>
+      <div style="font-size:3rem;font-weight:800;color:var(--neon-green);line-height:1.1">${every}</div>
+      <div style="font-size:1rem;font-weight:800;color:#fff">từ vựng</div>
+      <div style="font-size:0.7rem;color:rgba(255,255,255,0.3);margin-top:8px">Tổng đã thuộc hôm nay: ${total} từ</div>
     </div>
   `;
   document.body.appendChild(el);
@@ -4552,10 +4762,16 @@ function xpRecordOpenPack(packId) {
 // ── Public API cho các action ──
 function xpOnMastered(btnEl) {
   _xpSession.todayMastered++;
+  _totalMasteredSession++;
   xpAdd(XP_VALUES.MASTERED, 'mastered');
   _xpFloatBadge(XP_VALUES.MASTERED, btnEl);
   xpRecordInteraction();
   activeTimeRecordInteraction(); // ✦ active time
+
+  // Chúc mừng mỗi CELEBRATE_EVERY từ đã thuộc
+  if (CELEBRATE_EVERY > 0 && _totalMasteredSession % CELEBRATE_EVERY === 0) {
+    _fireMasteredCelebration(_totalMasteredSession, CELEBRATE_EVERY);
+  }
 }
 
 function xpOnArticleOpen() {
@@ -4654,6 +4870,7 @@ function closeDailySummary() {
 
 // ── Khởi động engine khi login xong ──
 async function xpInit() {
+  await _loadAppConfig(); // load XP values và celebrate config từ Firestore
   await xpLoad();
   await xpRecordDailyLogin();
 }
