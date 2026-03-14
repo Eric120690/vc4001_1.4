@@ -4700,10 +4700,30 @@ async function showStudyHistory() {
     const totalXP = xpData.total || _xpSession.total || 0;
     const streak  = xpData.loginStreakDays || _xpSession.loginStreakDays || 0;
 
-    // Tổng từ đã thuộc từ tất cả packs
+    // Tổng từ đã thuộc — đọc thẳng từ IDB để có data chính xác
+    // (packs[] metadata không cập nhật admin pack progress)
     let totalMastered = 0;
-    if (packs && packs.length) {
-      totalMastered = packs.reduce((s, p) => s + (p._masteredCount || 0), 0);
+    try {
+      const allKeys = await IDB.getAllKeys();
+      for (const key of allKeys) {
+        if (key.startsWith('__')) continue;
+        const cached = await IDB.get(key).catch(() => null);
+        if (!cached) continue;
+        if (key.startsWith('ap::')) {
+          // Admin pack: đếm từ _progress object
+          const prog = cached._progress || {};
+          totalMastered += Object.keys(prog).length;
+        } else {
+          // Own pack: đếm words.mastered
+          const ws = cached.words || [];
+          totalMastered += ws.filter(w => w.mastered && !w.hidden).length;
+        }
+      }
+    } catch(e) {
+      // Fallback về metadata nếu IDB lỗi
+      if (packs && packs.length) {
+        totalMastered = packs.reduce((s, p) => s + (p._masteredCount || 0), 0);
+      }
     }
 
     // Update stat cards
