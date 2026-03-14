@@ -1515,26 +1515,12 @@ const IDB = (() => {
   </div>
 
   <!-- ===== STATS BAR ===== -->
-  <div id="statsBar" style="display:none;text-align:center;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap">
+  <div id="statsBar" style="display:none;text-align:center;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap">
     <span id="statHoursVal" style="font-family:'Space Mono',monospace;font-size:0.65rem;color:rgba(255,255,255,0.25);letter-spacing:0.08em">⏱ 0p học</span>
-    <button onclick="showStudyHistory()" style="
-      font-family:'Space Mono',monospace;font-size:0.6rem;letter-spacing:0.1em;
-      text-transform:uppercase;color:rgba(0,245,255,0.5);
-      background:rgba(0,245,255,0.05);border:1px solid rgba(0,245,255,0.15);
-      border-radius:999px;padding:3px 10px;cursor:pointer;transition:all 0.2s;
-    " onmouseover="this.style.color='var(--neon-cyan)';this.style.borderColor='rgba(0,245,255,0.35)'"
-       onmouseout="this.style.color='rgba(0,245,255,0.5)';this.style.borderColor='rgba(0,245,255,0.15)'">
-      ◈ Lịch sử học
-    </button>
-    <button onclick="showDailySummary()" style="
-      font-family:'Space Mono',monospace;font-size:0.6rem;letter-spacing:0.1em;
-      text-transform:uppercase;color:rgba(255,230,0,0.55);
-      background:rgba(255,230,0,0.06);border:1px solid rgba(255,230,0,0.18);
-      border-radius:999px;padding:3px 10px;cursor:pointer;transition:all 0.2s;
-    " onmouseover="this.style.color='var(--neon-yellow)';this.style.borderColor='rgba(255,230,0,0.4)'"
-       onmouseout="this.style.color='rgba(255,230,0,0.55)';this.style.borderColor='rgba(255,230,0,0.18)'">
-      ✦ Hôm nay
-    </button>
+    <span style="color:rgba(255,255,255,0.1)">·</span>
+    <button onclick="showStudyHistory()" style="font-family:'Space Mono',monospace;font-size:0.65rem;letter-spacing:0.08em;color:rgba(255,255,255,0.25);background:none;border:none;padding:0;cursor:pointer;transition:color 0.2s;" onmouseover="this.style.color='rgba(255,255,255,0.5)'" onmouseout="this.style.color='rgba(255,255,255,0.25)'">lịch sử</button>
+    <span style="color:rgba(255,255,255,0.1)">·</span>
+    <button onclick="showDailySummary()" style="font-family:'Space Mono',monospace;font-size:0.65rem;letter-spacing:0.08em;color:rgba(255,255,255,0.25);background:none;border:none;padding:0;cursor:pointer;transition:color 0.2s;" onmouseover="this.style.color='rgba(255,255,255,0.5)'" onmouseout="this.style.color='rgba(255,255,255,0.25)'">hôm nay</button>
   </div>
 
   <!-- ===== MAIN NAV ===== -->
@@ -1987,7 +1973,7 @@ async function renderPacksGrid() {
         <div class="pack-name">${h(pack.name)}</div>
         <div class="pack-meta">${pack.desc ? h(pack.desc) + '<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
         <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%"></div></div>
-        <div class="pack-progress-label" style="margin-bottom:10px">${pct}% hoàn thành</div>
+        
         <button class="btn-publish ${isPublished ? 'published' : ''}" onclick="togglePublish('${pack.id}',event)">
           ${isPublished ? '🌐 Đang public · Bấm để ẩn' : '📤 Publish cho học viên'}
         </button>
@@ -1996,7 +1982,7 @@ async function renderPacksGrid() {
             <input type="checkbox" ${isPinned ? 'checked' : ''} onchange="togglePin('${pack.id}',this)">
             <span class="pin-toggle-track"></span>
           </label>
-          <span class="pin-toggle-label">Ghim lên đầu</span>
+          <span class="pin-toggle-label">PIN</span>
         </div>
         <div class="pack-sort-wrap" onclick="event.stopPropagation()">
           <span class="pack-sort-label">STT</span>
@@ -2051,15 +2037,15 @@ async function renderPacksGrid() {
           <div class="pack-meta">${pack.desc ? h(pack.desc) + '<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
           <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%"></div></div>
           <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
-            <div class="pack-progress-label" style="margin-top:0">${pct}% hoàn thành</div>
-            <div class="pack-admin-badge">⬡ giáo trình</div>
+            
+            
           </div>
           <div class="pin-toggle-wrap${isPinned ? ' active' : ''}" onclick="event.stopPropagation()">
             <label class="pin-toggle">
               <input type="checkbox" ${isPinned ? 'checked' : ''} onchange="toggleAdminPackPin('${pack.id}',this)">
               <span class="pin-toggle-track"></span>
             </label>
-            <span class="pin-toggle-label">Ghim lên đầu</span>
+            <span class="pin-toggle-label">PIN</span>
           </div>
         `;
         card.addEventListener('click', (e) => {
@@ -2099,13 +2085,13 @@ async function renderPacksGrid() {
         <div class="pack-name">${h(pack.name)}</div>
         <div class="pack-meta">${pack.desc ? h(pack.desc) + '<br>' : ''}${total} từ · ${mastered} đã thuộc</div>
         <div class="pack-progress-bar"><div class="pack-progress-fill" style="width:${pct}%"></div></div>
-        <div class="pack-progress-label">${pct}% hoàn thành</div>
+        
         <div class="pin-toggle-wrap${isPinned ? ' active' : ''}" onclick="event.stopPropagation()">
           <label class="pin-toggle">
             <input type="checkbox" ${isPinned ? 'checked' : ''} onchange="togglePin('${pack.id}',this)">
             <span class="pin-toggle-track"></span>
           </label>
-          <span class="pin-toggle-label">Ghim lên đầu</span>
+          <span class="pin-toggle-label">PIN</span>
         </div>
       `;
       card.addEventListener('click', (e) => {
@@ -4672,7 +4658,7 @@ async function showStudyHistory() {
 
       <!-- Chart -->
       <div style="margin-bottom:20px">
-        <div style="font-size:0.58rem;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.25);font-family:'Space Mono',monospace;margin-bottom:10px">Thời lượng học — 30 ngày gần nhất (phút)</div>
+        <div style="font-size:0.58rem;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.25);font-family:'Space Mono',monospace;margin-bottom:10px">Từ đã học — 30 ngày gần nhất</div>
         <div style="position:relative;height:140px"><canvas id="shChart"></canvas></div>
       </div>
 
@@ -4733,13 +4719,7 @@ async function showStudyHistory() {
       const key = d2.toISOString().slice(0,10);
       const shortLabel = (d2.getMonth()+1) + '/' + d2.getDate();
       labels.push(shortLabel);
-      // Tính phút trong ngày từ XP day_ key (active minutes estimate)
-      const dayXP = xpData['day_' + key] || 0;
-      // Nếu có studyHistory dùng trực tiếp, không thì estimate từ XP
-      const wordsSeen = studyHistory[key] || 0;
-      // Dùng studyHistory nếu có (words studied ~ proxy cho thời gian)
-      // Lấy minutes: mỗi 1 từ ~ 1.5 phút (estimate)
-      dataMin.push(wordsSeen > 0 ? Math.max(1, Math.round(wordsSeen * 1.5)) : (dayXP > 0 ? Math.max(1, Math.round(dayXP / 2)) : 0));
+      dataMin.push(studyHistory[key] || 0);
     }
 
     // Vẽ chart
@@ -4764,7 +4744,7 @@ async function showStudyHistory() {
           bodyColor: '#00f5ff',
           borderColor: 'rgba(0,245,255,0.2)',
           borderWidth: 1,
-          callbacks: { label: ctx => ctx.raw + ' phút' }
+          callbacks: { label: ctx => ctx.raw + ' từ đã học' }
         }},
         scales: {
           x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: 'rgba(255,255,255,0.2)', font: { size: 9 }, maxTicksLimit: 10 } },
