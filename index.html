@@ -2671,6 +2671,8 @@ function speakFallback(word, accent, btnId) {
 
 function autoSpeakCurrent() {
   if (!autoPlay) return;
+  // Chế độ đảo ngược: mặt trước là tiếng Việt → KHÔNG đọc khi load thẻ mới
+  if (reversedMode) return;
   const c = studyQueue[currentIndex];
   if (c) setTimeout(() => speakWord(c.word, 'en-US', 'btnUS'), 500);
 }
@@ -2940,6 +2942,12 @@ function flipCard() {
   c.classList.toggle('flipped',isFlipped);
   if (!wasFlipped) { statsRecordFlip(); }
   xpOnFlashcardAction(); // ✦ XP active time
+
+  // Chế độ đảo ngược: đọc từ khi lật sang mặt tiếng Anh (isFlipped = true)
+  if (reversedMode && autoPlay && isFlipped) {
+    const cur = studyQueue[currentIndex];
+    if (cur) setTimeout(() => speakWord(cur.word, 'en-US', 'btnUS2'), 300);
+  }
 }
 
 function handleKey(e) {
