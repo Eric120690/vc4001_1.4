@@ -2985,39 +2985,11 @@ document.addEventListener('keydown', function(e) {
     if (Math.abs(dx) < MIN_SWIPE) return;
     if (Math.abs(dy) / Math.abs(dx) > MAX_VERTICAL_RATIO) return;
     if (dx < 0) {
-      // Swipe left → next
       skipWord();
-      _showSwipeHint('→', 'Bỏ qua');
     } else {
-      // Swipe right → prev
       prevCard();
-      _showSwipeHint('←', 'Quay lại');
     }
   }, { passive: true });
-
-  function _showSwipeHint(arrow, label) {
-    let hint = document.getElementById('swipeHintEl');
-    if (!hint) {
-      hint = document.createElement('div');
-      hint.id = 'swipeHintEl';
-      hint.style.cssText = `
-        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(0.8);
-        background:rgba(0,0,0,0.75); backdrop-filter:blur(8px);
-        border:1px solid rgba(255,255,255,0.15); border-radius:16px;
-        padding:12px 24px; color:#fff; font-family:'Syne',sans-serif;
-        font-size:1.2rem; font-weight:800; letter-spacing:0.08em;
-        pointer-events:none; z-index:999; opacity:0;
-        transition:opacity 0.15s, transform 0.15s;
-      `;
-      document.body.appendChild(hint);
-    }
-    hint.textContent = arrow + ' ' + label;
-    hint.style.opacity = '1'; hint.style.transform = 'translate(-50%,-50%) scale(1)';
-    clearTimeout(hint._t);
-    hint._t = setTimeout(() => {
-      hint.style.opacity = '0'; hint.style.transform = 'translate(-50%,-50%) scale(0.85)';
-    }, 500);
-  }
 })();
 
 function skipWord()    { correctStreak=0; xpOnFlashcardAction(); nextCard(); } // ✦ XP
