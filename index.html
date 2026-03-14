@@ -1199,6 +1199,52 @@ const IDB = (() => {
   .profile-streak-count { font-family:'Syne',sans-serif; font-size:1.2rem; font-weight:800; color:var(--neon-yellow); }
   .profile-streak-label { font-size:0.7rem; color:rgba(255,255,255,0.35); }
   .profile-section-title { font-size:0.62rem; color:rgba(255,255,255,0.3); letter-spacing:0.2em; text-transform:uppercase; margin-bottom:8px; }
+
+  /* ── LOOP SIZE SETTING ── */
+  .loop-setting-card {
+    background: rgba(0,245,255,0.04);
+    border: 1px solid rgba(0,245,255,0.15);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+  }
+  .loop-setting-title {
+    font-size: 0.62rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--neon-cyan); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
+  }
+  .loop-setting-desc {
+    font-size: 0.7rem; color: rgba(255,255,255,0.38); line-height: 1.6; margin-bottom: 12px;
+  }
+  .loop-size-btns {
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  .loop-size-btn {
+    flex: 1; min-width: 36px; padding: 8px 4px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px; color: rgba(255,255,255,0.4);
+    font-family: 'Space Mono', monospace; font-size: 0.82rem; font-weight: 700;
+    cursor: pointer; transition: all 0.18s; text-align: center;
+  }
+  .loop-size-btn:hover { border-color: rgba(0,245,255,0.4); color: var(--neon-cyan); background: rgba(0,245,255,0.08); }
+  .loop-size-btn.active {
+    background: rgba(0,245,255,0.15); border-color: rgba(0,245,255,0.6);
+    color: var(--neon-cyan); box-shadow: 0 0 10px rgba(0,245,255,0.2);
+  }
+  .loop-off-btn {
+    width: 100%; margin-top: 8px; padding: 7px;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px; color: rgba(255,255,255,0.3);
+    font-family: 'Space Mono', monospace; font-size: 0.68rem;
+    cursor: pointer; transition: all 0.18s; text-align: center;
+  }
+  .loop-off-btn:hover { border-color: rgba(255,0,110,0.3); color: rgba(255,0,110,0.6); }
+  .loop-off-btn.active { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.18); color: rgba(255,255,255,0.5); }
+  .loop-status-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    margin-top: 10px; font-size: 0.65rem; font-family: 'Space Mono', monospace;
+    color: rgba(0,245,255,0.55); letter-spacing: 0.05em;
+  }
+  .loop-status-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--neon-cyan); animation: pulse 2s infinite; }
   .profile-history { display:flex; flex-direction:column; gap:4px; margin-bottom:16px; }
   .profile-hist-row { display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:var(--glass); border-radius:8px; font-size:0.72rem; }
   .profile-hist-date { color:rgba(255,255,255,0.4); }
@@ -1440,6 +1486,23 @@ const IDB = (() => {
       <button class="sync-profile-btn download" id="syncDownBtn" onclick="manualPull()">
         <span>⬇</span><span>Tải cloud xuống</span>
       </button>
+    </div>
+    <!-- ── LOOP SETTING ── -->
+    <div class="loop-setting-card">
+      <div class="loop-setting-title">🔁 Vòng lặp học từ</div>
+      <div class="loop-setting-desc">Học N từ rồi lặp lại từ đầu. Khi thuộc 1 từ, tự động thêm từ tiếp vào vòng.</div>
+      <div class="loop-size-btns" id="loopSizeBtns">
+        <button class="loop-size-btn" onclick="setLoopSize(5)">5</button>
+        <button class="loop-size-btn" onclick="setLoopSize(6)">6</button>
+        <button class="loop-size-btn" onclick="setLoopSize(7)">7</button>
+        <button class="loop-size-btn" onclick="setLoopSize(8)">8</button>
+        <button class="loop-size-btn" onclick="setLoopSize(9)">9</button>
+        <button class="loop-size-btn" onclick="setLoopSize(10)">10</button>
+      </div>
+      <button class="loop-off-btn" id="loopOffBtn" onclick="setLoopSize(0)">✕ Tắt vòng lặp</button>
+      <div class="loop-status-badge" id="loopStatusBadge" style="display:none">
+        <span class="dot"></span><span id="loopStatusText"></span>
+      </div>
     </div>
     <div class="profile-section-title">Lịch sử học gần đây</div>
     <div class="profile-history" id="profileHistory"></div>
@@ -1842,6 +1905,12 @@ let currentIndex = 0;
 let isFlipped = false;
 let correctStreak = 0;
 let listFilter = 'all';
+
+// ── LOOP SIZE ── (0 = tắt, 5-10 = bật)
+let loopSize = parseInt(localStorage.getItem('lexon_loop_size') || '0');
+// loopWindow: mảng chỉ số trong studyQueue đang trong vòng lặp
+let loopWindow = [];
+let loopWindowIndex = 0;
 
 // ============================================================
 //  FIREBASE HELPERS
@@ -2618,7 +2687,80 @@ function buildQueue() {
   studyQueue = pool.map(w=>({...w}));
   for (let i=studyQueue.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [studyQueue[i],studyQueue[j]]=[studyQueue[j],studyQueue[i]]; }
   currentIndex=0; isFlipped=false; correctStreak=0;
+  // Init loop window
+  _initLoopWindow();
 }
+
+// ── LOOP WINDOW HELPERS ──
+function _initLoopWindow() {
+  if (!loopSize || studyQueue.length === 0) { loopWindow = []; loopWindowIndex = 0; return; }
+  // Lấy min(loopSize, studyQueue.length) từ đầu queue
+  loopWindow = studyQueue.slice(0, Math.min(loopSize, studyQueue.length)).map((_, i) => i);
+  loopWindowIndex = 0;
+  currentIndex = loopWindow[0];
+}
+
+function _loopNextCard() {
+  if (!loopSize || !loopWindow.length) return false; // fallback to normal
+  loopWindowIndex = (loopWindowIndex + 1) % loopWindow.length;
+  currentIndex = loopWindow[loopWindowIndex];
+  return true;
+}
+
+function _loopOnMastered(masteredQueueIdx) {
+  if (!loopSize || !loopWindow.length) return;
+  // Xóa từ đã thuộc khỏi loopWindow
+  loopWindow = loopWindow.filter(i => i !== masteredQueueIdx);
+  // Thêm từ tiếp theo vào loopWindow nếu có
+  const nextIdx = loopSize + (studyQueue.length - studyQueue.filter((_, i) => loopWindow.includes(i) || i === masteredQueueIdx).length);
+  // Cách đơn giản: tìm từ chưa có trong loopWindow, lấy cái đầu tiên sau max của loopWindow
+  const inWindow = new Set(loopWindow);
+  const candidates = studyQueue.map((_, i) => i).filter(i => !inWindow.has(i) && i !== masteredQueueIdx);
+  if (candidates.length) {
+    loopWindow.push(candidates[0]);
+  }
+  // Clamp loopWindowIndex
+  if (loopWindow.length === 0) { loopWindowIndex = 0; return; }
+  loopWindowIndex = loopWindowIndex % loopWindow.length;
+  currentIndex = loopWindow[loopWindowIndex];
+}
+
+// ── SET LOOP SIZE (từ profile) ──
+function setLoopSize(n) {
+  loopSize = n;
+  localStorage.setItem('lexon_loop_size', n);
+  _updateLoopUI();
+  // Rebuild queue với loop mode mới
+  if (studyQueue.length) {
+    if (loopSize) _initLoopWindow();
+    else { currentIndex = 0; loopWindow = []; }
+    const panel = document.getElementById('panel-flashcard');
+    if (panel && panel.classList.contains('active')) renderFlashcard();
+  }
+}
+
+function _updateLoopUI() {
+  // Cập nhật buttons trong profile
+  document.querySelectorAll('.loop-size-btn').forEach((btn, i) => {
+    const val = i + 5;
+    btn.classList.toggle('active', loopSize === val);
+  });
+  const offBtn = document.getElementById('loopOffBtn');
+  if (offBtn) offBtn.classList.toggle('active', loopSize === 0);
+  const badge = document.getElementById('loopStatusBadge');
+  const badgeText = document.getElementById('loopStatusText');
+  if (badge && badgeText) {
+    if (loopSize > 0) {
+      badge.style.display = 'inline-flex';
+      badgeText.textContent = `Đang bật vòng ${loopSize} từ`;
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+}
+
+// Gọi khi mở profile để sync UI
+function _syncLoopUIOnOpen() { _updateLoopUI(); }
 
 // ============================================================
 //  FLASHCARD
@@ -2677,6 +2819,15 @@ function renderFlashcard() {
       <div class="stat-card"><div class="stat-value">${m}</div><div class="stat-label">Đã thuộc</div></div>
       <div class="stat-card"><div class="stat-value">${correctStreak}</div><div class="stat-label">Streak 🔥</div></div>
     </div>
+    ${loopSize && loopWindow.length ? `
+    <div style="text-align:center;margin-bottom:10px">
+      <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 16px;background:rgba(0,245,255,0.07);border:1px solid rgba(0,245,255,0.2);border-radius:20px;font-size:0.68rem;font-family:'Space Mono',monospace;color:var(--neon-cyan);letter-spacing:0.04em">
+        <span style="opacity:0.6">🔁 Vòng</span>
+        <span style="font-weight:700">${loopWindowIndex + 1} / ${loopWindow.length}</span>
+        <span style="opacity:0.4">·</span>
+        <span style="opacity:0.6">Tổng window: ${loopWindow.length} từ</span>
+      </div>
+    </div>` : ''}
     <div class="fc-controls">
       <div class="prog-info"><strong>${currentIndex+1}</strong> / ${studyQueue.length}</div>
       <div class="prog-wrap"><div class="prog-bar" style="width:${prog}%"></div></div>
@@ -2772,8 +2923,8 @@ function renderFlashcard() {
       <button class="btn btn-mastered" onclick="markMastered()">✓ Đã Thuộc!</button>
     </div>
     <div class="arrow-nav">
-      <button class="btn-arrow" onclick="prevCard()" ${currentIndex===0?'disabled':''} title="Quay lại (←)">←</button>
-      <span class="arrow-nav-hint">Phím ← → để điều hướng &nbsp;·&nbsp; Space để lật</span>
+      <button class="btn-arrow" onclick="prevCard()" ${(!loopSize && currentIndex===0)?'disabled':''} title="Quay lại (←)">←</button>
+      <span class="arrow-nav-hint">Phím ← → &nbsp;·&nbsp; Vuốt trái/phải &nbsp;·&nbsp; Space lật</span>
       <button class="btn-arrow" onclick="skipWord()" title="Tiếp theo (→)">→</button>
     </div>
   `;
@@ -2809,9 +2960,87 @@ document.addEventListener('keydown', function(e) {
   if(e.key===' '||e.key==='ArrowUp'||e.key==='ArrowDown'){ e.preventDefault(); flipCard(); }
 });
 
+// ── SWIPE SUPPORT (mobile) ──
+(function() {
+  let swipeStartX = 0, swipeStartY = 0, swipeStartTime = 0;
+  const MIN_SWIPE = 50, MAX_VERTICAL_RATIO = 0.7, MAX_TIME = 400;
+
+  document.addEventListener('touchstart', function(e) {
+    const t = e.touches[0];
+    swipeStartX = t.clientX;
+    swipeStartY = t.clientY;
+    swipeStartTime = Date.now();
+  }, { passive: true });
+
+  document.addEventListener('touchend', function(e) {
+    const isFlashcardPanel = document.getElementById('panel-flashcard')?.classList.contains('active');
+    if (!isFlashcardPanel) return;
+    // Ignore if overlay is open
+    if (document.querySelector('.art-overlay.open')) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - swipeStartX;
+    const dy = t.clientY - swipeStartY;
+    const dt = Date.now() - swipeStartTime;
+    if (dt > MAX_TIME) return;
+    if (Math.abs(dx) < MIN_SWIPE) return;
+    if (Math.abs(dy) / Math.abs(dx) > MAX_VERTICAL_RATIO) return;
+    if (dx < 0) {
+      // Swipe left → next
+      skipWord();
+      _showSwipeHint('→', 'Bỏ qua');
+    } else {
+      // Swipe right → prev
+      prevCard();
+      _showSwipeHint('←', 'Quay lại');
+    }
+  }, { passive: true });
+
+  function _showSwipeHint(arrow, label) {
+    let hint = document.getElementById('swipeHintEl');
+    if (!hint) {
+      hint = document.createElement('div');
+      hint.id = 'swipeHintEl';
+      hint.style.cssText = `
+        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(0.8);
+        background:rgba(0,0,0,0.75); backdrop-filter:blur(8px);
+        border:1px solid rgba(255,255,255,0.15); border-radius:16px;
+        padding:12px 24px; color:#fff; font-family:'Syne',sans-serif;
+        font-size:1.2rem; font-weight:800; letter-spacing:0.08em;
+        pointer-events:none; z-index:999; opacity:0;
+        transition:opacity 0.15s, transform 0.15s;
+      `;
+      document.body.appendChild(hint);
+    }
+    hint.textContent = arrow + ' ' + label;
+    hint.style.opacity = '1'; hint.style.transform = 'translate(-50%,-50%) scale(1)';
+    clearTimeout(hint._t);
+    hint._t = setTimeout(() => {
+      hint.style.opacity = '0'; hint.style.transform = 'translate(-50%,-50%) scale(0.85)';
+    }, 500);
+  }
+})();
+
 function skipWord()    { correctStreak=0; xpOnFlashcardAction(); nextCard(); } // ✦ XP
-function nextCard()    { currentIndex++; if(currentIndex>=studyQueue.length) buildQueue(); isFlipped=false; renderFlashcard(); }
-function prevCard()    { if(currentIndex>0){ currentIndex--; isFlipped=false; renderFlashcard(); } }
+function nextCard() {
+  if (loopSize && loopWindow.length) {
+    // Loop mode: xoay vòng trong window
+    loopWindowIndex = (loopWindowIndex + 1) % loopWindow.length;
+    currentIndex = loopWindow[loopWindowIndex];
+  } else {
+    currentIndex++;
+    if(currentIndex>=studyQueue.length) buildQueue();
+  }
+  isFlipped=false; renderFlashcard();
+}
+function prevCard() {
+  if (loopSize && loopWindow.length) {
+    loopWindowIndex = (loopWindowIndex - 1 + loopWindow.length) % loopWindow.length;
+    currentIndex = loopWindow[loopWindowIndex];
+    isFlipped=false; renderFlashcard();
+  } else {
+    if(currentIndex>0){ currentIndex--; isFlipped=false; renderFlashcard(); }
+  }
+}
 
 function markMastered() {
   if(!studyQueue[currentIndex])return;
@@ -2821,9 +3050,27 @@ function markMastered() {
   // ✦ XP
   const masteredBtn = document.querySelector('.btn-mastered');
   xpOnMastered(masteredBtn);
+
+  const masteredIdx = currentIndex;
   studyQueue.splice(currentIndex,1);
-  if(currentIndex>=studyQueue.length) currentIndex=0;
-  if(!studyQueue.length) buildQueue();
+
+  if (loopSize && loopWindow.length) {
+    // Update loopWindow: xóa idx cũ, thêm từ mới vào nếu có
+    // Sau splice, các idx > masteredIdx giảm đi 1
+    loopWindow = loopWindow
+      .filter(idx => idx !== masteredIdx)
+      .map(idx => idx > masteredIdx ? idx - 1 : idx);
+    // Thêm từ tiếp theo chưa có trong window
+    const inWindow = new Set(loopWindow);
+    const candidates = studyQueue.map((_, i) => i).filter(i => !inWindow.has(i));
+    if (candidates.length) loopWindow.push(candidates[0]);
+    if (loopWindow.length === 0) { buildQueue(); return; }
+    loopWindowIndex = loopWindowIndex % loopWindow.length;
+    currentIndex = loopWindow[loopWindowIndex];
+  } else {
+    if(currentIndex>=studyQueue.length) currentIndex=0;
+    if(!studyQueue.length) buildQueue();
+  }
   isFlipped=false; renderFlashcard(); updateStudyBadge();
 }
 
@@ -3157,6 +3404,7 @@ async function openProfile() {
   document.getElementById('profileEmail').textContent = u.email;
 
   document.getElementById('profileOverlay').classList.add('show');
+  _syncLoopUIOnOpen();
 
   try {
     const snap = await window._getDoc(userDoc());
