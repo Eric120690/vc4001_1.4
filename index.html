@@ -658,7 +658,14 @@ const IDB = (() => {
   .flashcard.flipped { transform:rotateY(180deg); }
   .fc-face {
     position:absolute; inset:0; border-radius:20px; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; backface-visibility:hidden; padding:28px; text-align:center; min-height:240px;
+    align-items:center; justify-content:center; backface-visibility:hidden;
+    padding:20px 24px 24px; text-align:center; overflow:hidden;
+  }
+  /* Sizer ẩn: đẩy chiều cao card theo nội dung thực */
+  .fc-sizer {
+    visibility:hidden; pointer-events:none;
+    display:flex; flex-direction:column; align-items:center;
+    padding:20px 24px 24px; width:100%; min-height:240px;
   }
   .fc-front {
     background:linear-gradient(135deg, rgba(0,245,255,0.08), rgba(191,0,255,0.08));
@@ -686,6 +693,67 @@ const IDB = (() => {
   .fc-level { font-size:0.62rem; padding:3px 10px; border-radius:20px; background:rgba(191,0,255,0.15); border:1px solid rgba(191,0,255,0.3); color:var(--neon-purple); letter-spacing:0.12em; margin-bottom:8px; text-transform:uppercase; font-family:'Inter',sans-serif; }
   .fc-desc  { font-size:0.82rem; color:rgba(255,255,255,0.58); max-width:400px; margin-bottom:7px; line-height:1.6; font-family:'Inter',sans-serif; }
   .fc-example { font-size:0.82rem; color:rgba(255,255,255,0.38); font-style:italic; max-width:420px; line-height:1.6; font-family:'Inter',sans-serif; }
+
+  /* ── NÚT NGỮ CẢNH BÁO CHÍ ── */
+  .fc-art-btn {
+    display:inline-flex; align-items:center; gap:5px; margin-top:8px;
+    font-size:0.68rem; font-family:'Space Mono',monospace; letter-spacing:0.04em;
+    color:rgba(0,245,255,0.5); cursor:pointer; transition:color 0.15s;
+    background:none; border:none; padding:2px 0;
+  }
+  .fc-art-btn:hover { color:var(--neon-cyan); }
+
+  /* ── ARTICLE DRAWER ── */
+  .art-overlay {
+    display:none; position:fixed; inset:0; z-index:1100;
+    background:rgba(0,0,0,0.65); backdrop-filter:blur(3px); align-items:flex-end;
+  }
+  .art-overlay.open { display:flex; }
+  .art-drawer {
+    width:100%; max-height:80vh; background:#10102a;
+    border-radius:22px 22px 0 0; border-top:1px solid rgba(0,245,255,0.15);
+    display:flex; flex-direction:column; box-shadow:0 -8px 40px rgba(0,0,0,0.5);
+  }
+  .art-handle { width:36px; height:4px; border-radius:2px; background:rgba(255,255,255,0.15); margin:10px auto 0; flex-shrink:0; }
+  .art-head {
+    padding:10px 18px 12px; border-bottom:1px solid rgba(255,255,255,0.06);
+    display:flex; align-items:center; gap:10px; flex-shrink:0;
+  }
+  .art-head-title { font-family:'Syne',sans-serif; font-size:0.88rem; font-weight:700; color:#fff; flex:1; }
+  .art-head-word {
+    font-family:'Space Mono',monospace; font-size:0.7rem; color:var(--neon-cyan);
+    background:rgba(0,245,255,0.08); border:1px solid rgba(0,245,255,0.2);
+    border-radius:20px; padding:2px 10px;
+  }
+  .art-close {
+    width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.06);
+    border:none; color:rgba(255,255,255,0.4); font-size:1rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; transition:all 0.15s; flex-shrink:0;
+  }
+  .art-close:hover { background:rgba(255,0,110,0.15); color:var(--neon-pink); }
+  .art-body { overflow-y:auto; flex:1; padding-bottom:env(safe-area-inset-bottom,20px); }
+  .art-body::-webkit-scrollbar { width:3px; }
+  .art-body::-webkit-scrollbar-thumb { background:rgba(0,245,255,0.2); border-radius:3px; }
+  .art-item { border-bottom:1px solid rgba(255,255,255,0.05); }
+  .art-item-head {
+    display:flex; align-items:center; gap:10px; padding:13px 18px;
+    cursor:pointer; user-select:none; transition:background 0.15s;
+  }
+  .art-item-head:hover { background:rgba(255,255,255,0.02); }
+  .art-arrow { font-size:0.58rem; color:rgba(255,255,255,0.25); transition:transform 0.2s; flex-shrink:0; }
+  .art-item.open .art-arrow { transform:rotate(90deg); color:var(--neon-cyan); }
+  .art-src { font-family:'Space Mono',monospace; font-size:0.72rem; font-weight:700; color:var(--neon-cyan); }
+  .art-item-body { display:none; padding:0 18px 16px; }
+  .art-item.open .art-item-body { display:block; }
+  .art-sec { margin-bottom:12px; }
+  .art-sec-lbl { font-size:0.58rem; letter-spacing:0.18em; text-transform:uppercase; color:rgba(255,255,255,0.25); font-family:'Space Mono',monospace; margin-bottom:5px; }
+  .art-ctx  { font-size:0.82rem; color:rgba(255,255,255,0.65); line-height:1.8; }
+  .art-qt   { font-size:0.82rem; font-style:italic; color:rgba(255,255,255,0.5); line-height:1.7; padding-left:10px; border-left:2px solid rgba(0,245,255,0.3); }
+  .art-qt mark { background:none; font-style:normal; font-weight:700; color:var(--neon-cyan); }
+  .art-qtvi { font-size:0.8rem; color:rgba(255,255,255,0.38); line-height:1.7; font-style:italic; }
+  .art-link { display:inline-flex; align-items:center; gap:4px; margin-top:8px; font-size:0.68rem; font-family:'Space Mono',monospace; color:rgba(0,245,255,0.45); text-decoration:none; transition:color 0.15s; }
+  .art-link:hover { color:var(--neon-cyan); }
+  .art-empty { padding:36px 24px; text-align:center; color:rgba(255,255,255,0.3); font-size:0.82rem; line-height:1.9; }
 
 
   .feedback-correct { color:var(--neon-green); text-shadow:0 0 8px rgba(57,255,20,0.5); }
@@ -781,7 +849,22 @@ const IDB = (() => {
   .screen { display:none; }
   .screen.active { display:block; }
   .packs-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:14px; margin-top:16px; }
+  @media(max-width:600px) {
+    .packs-grid { grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+  }
   .pack-card { background:var(--glass); border:1.5px solid var(--glass-border); border-radius:18px; padding:20px; cursor:pointer; transition:all 0.25s; position:relative; overflow:visible; }
+  @media(max-width:600px) {
+    .pack-card { padding:11px 10px; border-radius:13px; }
+    .pack-icon { font-size:1.3rem !important; margin-bottom:6px !important; }
+    .pack-name { font-size:0.78rem !important; margin-bottom:3px !important; }
+    .pack-meta { font-size:0.62rem !important; margin-bottom:7px !important; line-height:1.4 !important; }
+    .pack-progress-label { font-size:0.58rem !important; }
+    .pack-add-card { padding:14px 8px !important; border-radius:13px !important; }
+    .pack-add-icon { font-size:1.3rem !important; }
+    .pack-add-label { font-size:0.6rem !important; letter-spacing:0.08em !important; }
+    .pin-toggle-wrap { margin-top:6px !important; }
+    .pin-toggle-label { font-size:0.52rem !important; }
+  }
   .pack-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--neon-cyan),var(--neon-purple)); opacity:0; transition:opacity 0.25s; border-radius:18px 18px 0 0; }
   .pack-card:hover { border-color:rgba(0,245,255,0.3); transform:translateY(-3px); background:rgba(255,255,255,0.06); }
   .pack-card:hover::before { opacity:1; }
@@ -1517,6 +1600,27 @@ serendipity - tình cờ may mắn - (n) - It was pure serendipity."></textarea>
 
       <div id="importToast" class="import-toast"></div>
 
+      <!-- ── UPLOAD NGỮ CẢNH BÁO CHÍ (per-pack) ── -->
+      <div style="margin-top:20px;padding:16px;background:rgba(0,245,255,0.03);border:1px solid rgba(0,245,255,0.12);border-radius:14px">
+        <div style="font-size:0.62rem;letter-spacing:0.2em;text-transform:uppercase;color:rgba(0,245,255,0.5);margin-bottom:12px">📰 Thêm ngữ cảnh báo chí</div>
+        <div class="excel-dropzone" id="ctxDropzone" style="min-height:80px;padding:14px;border-color:rgba(0,245,255,0.2)"
+          ondragover="handleDragOver2(event)" ondragleave="handleDragLeave2(event)" ondrop="handleDropCtx(event)">
+          <input type="file" id="ctxFile" accept=".xlsx,.xls" onchange="handleFileSelectCtx(event)">
+          <span class="dz-icon" style="font-size:1.3rem">📰</span>
+          <div class="dz-title" style="font-size:0.78rem">Kéo thả hoặc nhấp để chọn file ngữ cảnh</div>
+          <div class="dz-sub" style="font-size:0.63rem">Hệ thống đối chiếu cột <strong>Word</strong> → gắn ngữ cảnh cho từ khớp trong gói này</div>
+          <div class="col-tags" style="margin-top:8px">
+            <span class="col-tag" style="border-color:rgba(0,245,255,0.4);color:var(--neon-cyan)">Word ✦</span>
+            <span class="col-tag">Nguồn báo</span>
+            <span class="col-tag">Ngữ cảnh VI</span>
+            <span class="col-tag">Trích dẫn gốc</span>
+            <span class="col-tag">Dịch câu</span>
+            <span class="col-tag">Link</span>
+          </div>
+        </div>
+        <div id="ctxImportResult" style="margin-top:10px;display:none"></div>
+      </div>
+
       <div class="storage-row">
         <div class="storage-badge">
           <span class="storage-dot"></span>
@@ -1704,6 +1808,11 @@ async function saveData() {
     level: w.level || '',
     mastered: !!w.mastered,
     hidden: !!w.hidden,
+    art_source:   w.art_source   || '',
+    art_url:      w.art_url      || '',
+    art_ctx_vi:   w.art_ctx_vi   || '',
+    art_quote:    w.art_quote    || '',
+    art_quote_vi: w.art_quote_vi || '',
   }));
 
   await IDB.set(currentPack.id, { words: wordsToSave, updatedAt: now }).catch(() => {});
@@ -1893,11 +2002,7 @@ async function renderPacksGrid() {
 
     loadAdminPacks().then(async adminPacks => {
       if (!adminPacks.length) return;
-      const label = document.createElement('div');
-      label.className = 'shared-section-label';
-      label.style.cssText = 'grid-column:1/-1';
-      label.innerHTML = '⬡ Giáo trình';
-      grid.insertBefore(label, grid.firstChild);
+      // (section label removed)
 
       for (let i = 0; i < adminPacks.length; i++) {
         const pack = adminPacks[i];
@@ -1949,11 +2054,7 @@ async function renderPacksGrid() {
 
     // Pack riêng của user
     if (packs.length) {
-      const myLabel = document.createElement('div');
-      myLabel.className = 'shared-section-label';
-      myLabel.style.cssText = 'grid-column:1/-1;margin-top:8px';
-      myLabel.innerHTML = '◈ Gói của tôi';
-      grid.appendChild(myLabel);
+      // (section label removed)
     }
 
     const addCard = document.createElement('div');
@@ -2180,11 +2281,16 @@ function processExcelFile(file) {
         word:        ['word'],
         meaning:     ['nghĩa tiếng việt','meaning','nghia tieng viet','nghĩa','ngha tieng vit'],
         phonetics:   ['phonetics','phonetic','phiên âm','phien am'],
-        description: ['description','descrition','mô tả','mo ta','desc'],
+        description: ['description','descrition','mô tả','mo ta','desc','note'],
         example:     ['example','ví dụ','vi du'],
         example_vi:  ['example vi','ví dụ vi','vi du vi','example_vi','ví dụ tiếng việt','vi du tieng viet'],
         type:        ['type','loại từ','loai tu'],
         level:       ['level','cấp độ','cap do'],
+        art_source:  ['article_source','nguồn báo','nguon bao','bài báo','bai bao'],
+        art_url:     ['article_url','url','link'],
+        art_ctx_vi:  ['article_context_vi','ngữ cảnh vi','ngu canh vi','context_vi'],
+        art_quote:   ['article_quote','trích dẫn gốc','trich dan goc','trích dẫn','quote'],
+        art_quote_vi:['article_quote_vi','dịch câu','dich cau','quote_vi'],
       };
 
       function getCol(row, aliases) {
@@ -2209,6 +2315,11 @@ function processExcelFile(file) {
           example_vi:  getCol(row, COL.example_vi),
           type:        getCol(row, COL.type),
           level:       getCol(row, COL.level),
+          art_source:  getCol(row, COL.art_source),
+          art_url:     getCol(row, COL.art_url),
+          art_ctx_vi:  getCol(row, COL.art_ctx_vi),
+          art_quote:   getCol(row, COL.art_quote),
+          art_quote_vi:getCol(row, COL.art_quote_vi),
           mastered:    false,
         });
       });
@@ -2487,6 +2598,7 @@ function renderFlashcard() {
             </div>
           `}
           ${c.example?`<div class="fc-example" style="margin-top:6px" onclick="event.stopPropagation()">🗣 ${h(c.example)}</div>`:''}
+          <button class="fc-art-btn" onclick="openArtDrawer(studyQueue[currentIndex]);event.stopPropagation()">📰 xem ngữ cảnh báo chí →</button>
         </div>
         <div class="fc-face fc-back">
           <div class="fc-hint">${reversedMode ? 'Tiếng Anh' : 'Nghĩa tiếng Việt'}</div>
@@ -2514,6 +2626,18 @@ function renderFlashcard() {
             : (c.example_vi ? `<div class="fc-example" style="margin-top:6px" onclick="event.stopPropagation()">🗣 ${h(c.example_vi)}</div>`
                : c.example  ? `<div class="fc-example" style="margin-top:6px" onclick="event.stopPropagation()">🗣 ${h(c.example)}</div>` : '')
           }
+          <button class="fc-art-btn" onclick="openArtDrawer(studyQueue[currentIndex]);event.stopPropagation()">📰 xem ngữ cảnh báo chí →</button>
+        </div>
+        <!-- Sizer: đẩy chiều cao theo nội dung thực của mặt front -->
+        <div class="fc-sizer" aria-hidden="true">
+          <div class="fc-hint" style="opacity:0">_</div>
+          <div class="fc-word" style="background:none;-webkit-text-fill-color:transparent">${reversedMode ? h(c.meaning) : h(c.word)}</div>
+          ${c.phonetics ? `<div class="fc-phonetic" style="opacity:0">_</div>` : ''}
+          ${c.type      ? `<div class="fc-type"     style="opacity:0">_</div>` : ''}
+          ${c.level     ? `<div class="fc-level"    style="opacity:0">_</div>` : ''}
+          <div class="fc-speak-row" style="opacity:0"><button class="fc-speak-btn fc-speak-us">🔊 US</button><button class="fc-speak-btn fc-speak-uk">🔊 UK</button></div>
+          ${c.example   ? `<div class="fc-example"  style="opacity:0">🗣 ${h(c.example)}</div>` : ''}
+          <button class="fc-art-btn" style="opacity:0">📰 xem ngữ cảnh báo chí →</button>
         </div>
       </div>
     </div>
@@ -4147,6 +4271,184 @@ function _showOfflineBanner(show) {
 window.addEventListener('online',  () => _showOfflineBanner(false));
 window.addEventListener('offline', () => _showOfflineBanner(true));
 if (!navigator.onLine) _showOfflineBanner(true);
+</script>
+  <!-- ARTICLE DRAWER -->
+  <div class="art-overlay" id="artOverlay" onclick="if(event.target===this)closeArtDrawer()">
+    <div class="art-drawer">
+      <div class="art-handle"></div>
+      <div class="art-head">
+        <div class="art-head-title">📰 Ngữ cảnh thực tế</div>
+        <div class="art-head-word" id="artWord"></div>
+        <button class="art-close" onclick="closeArtDrawer()">✕</button>
+      </div>
+      <div class="art-body" id="artBody"></div>
+    </div>
+  </div>
+
+<script>
+// ── ARTICLE DRAWER ──
+function parseArticles(w) {
+  const sp = s => (s||'').split('|').map(x=>x.trim()).filter(Boolean);
+  const src = sp(w.art_source);
+  if (!src.length) return [];
+  const urls = sp(w.art_url), ctxs = sp(w.art_ctx_vi);
+  const qts  = sp(w.art_quote), qtvis = sp(w.art_quote_vi);
+  return src.map((s,i) => ({ source:s, url:urls[i]||'', ctx_vi:ctxs[i]||'', quote:qts[i]||'', quote_vi:qtvis[i]||'' }));
+}
+function hlWord(text, word) {
+  if (!word) return text;
+  return text.replace(new RegExp(`(${word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'), '<mark>$1</mark>');
+}
+function openArtDrawer(w) {
+  const arts = parseArticles(w);
+  document.getElementById('artWord').textContent = w.word;
+  const body = document.getElementById('artBody');
+  if (!arts.length) {
+    body.innerHTML = `<div class="art-empty">📰<br><br>Từ này chưa có ngữ cảnh báo chí.<br><span style="font-size:0.72rem;opacity:0.6">Thêm vào Excel: <code style="color:var(--neon-cyan)">Nguồn báo · Trích dẫn gốc · Ngữ cảnh VI · Dịch câu</code></span></div>`;
+  } else {
+    body.innerHTML = arts.map((a,i)=>`
+      <div class="art-item" id="aItem${i}">
+        <div class="art-item-head" onclick="toggleArt(${i})">
+          <span class="art-arrow">▶</span>
+          <span class="art-src">${h(a.source)}</span>
+        </div>
+        <div class="art-item-body">
+          ${a.ctx_vi?`<div class="art-sec"><div class="art-sec-lbl">Ngữ cảnh (tiếng Việt)</div><div class="art-ctx">${h(a.ctx_vi)}</div></div>`:''}
+          ${a.quote?`<div class="art-sec"><div class="art-sec-lbl">Trích dẫn gốc</div><div class="art-qt">${hlWord(h(a.quote),w.word)}</div></div>`:''}
+          ${a.quote_vi?`<div class="art-sec"><div class="art-sec-lbl">Dịch câu</div><div class="art-qtvi">${h(a.quote_vi)}</div></div>`:''}
+          ${a.url?`<a class="art-link" href="${h(a.url)}" target="_blank">↗ Đọc bài gốc</a>`:''}
+        </div>
+      </div>`).join('');
+    toggleArt(0);
+  }
+  document.getElementById('artOverlay').classList.add('open');
+}
+function toggleArt(i) {
+  const item = document.getElementById('aItem'+i);
+  if (!item) return;
+  const was = item.classList.contains('open');
+  document.querySelectorAll('.art-item.open').forEach(el=>el.classList.remove('open'));
+  if (!was) item.classList.add('open');
+}
+function closeArtDrawer() {
+  document.getElementById('artOverlay').classList.remove('open');
+}
+// ── CONTEXT FILE UPLOAD (Admin) ──
+function handleDragOver2(e) { e.preventDefault(); document.getElementById('ctxDropzone').classList.add('drag-over'); }
+function handleDragLeave2() { document.getElementById('ctxDropzone').classList.remove('drag-over'); }
+function handleDropCtx(e) { e.preventDefault(); handleDragLeave2(); const f=e.dataTransfer.files[0]; if(f) processCtxFile(f); }
+function handleFileSelectCtx(e) { const f=e.target.files[0]; if(f) processCtxFile(f); e.target.value=''; }
+
+async function processCtxFile(file) {
+  if (!file.name.match(/\.(xlsx|xls)$/i)) { showToast('error','✕ Chỉ hỗ trợ .xlsx hoặc .xls'); return; }
+  const res = document.getElementById('ctxImportResult');
+  res.style.display = 'block';
+  res.innerHTML = '<span style="color:rgba(255,255,255,0.45)">⟳ Đang xử lý...</span>';
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const wb   = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:''});
+      if (!rows.length) { showToast('error','✕ File trống'); return; }
+
+      function getC(row, aliases) {
+        const keys = Object.keys(row).map(k=>k.toLowerCase().trim());
+        for (const a of aliases) { const i=keys.indexOf(a); if(i>=0) return String(Object.values(row)[i]).trim(); }
+        return '';
+      }
+      const CCTX = {
+        word:     ['word'],
+        source:   ['nguồn báo','nguon bao','article_source','source'],
+        url:      ['link','url','article_url'],
+        ctx_vi:   ['ngữ cảnh vi','ngu canh vi','article_context_vi','context_vi'],
+        quote:    ['trích dẫn gốc','trich dan goc','trích dẫn','article_quote','quote'],
+        quote_vi: ['dịch câu','dich cau','article_quote_vi','quote_vi'],
+      };
+
+      // Gom theo word (lowercase) → mảng bài báo
+      const byWord = {};
+      rows.forEach(row => {
+        const w = getC(row, CCTX.word).toLowerCase();
+        if (!w) return;
+        if (!byWord[w]) byWord[w] = [];
+        byWord[w].push({
+          source:   getC(row, CCTX.source),
+          url:      getC(row, CCTX.url),
+          ctx_vi:   getC(row, CCTX.ctx_vi),
+          quote:    getC(row, CCTX.quote),
+          quote_vi: getC(row, CCTX.quote_vi),
+        });
+      });
+
+      const totalCtxWords = Object.keys(byWord).length;
+      const successWords = [];
+      const failWords = [];
+
+      // Chỉ merge vào pack đang mở
+      if (words.length) {
+        words.forEach(w => {
+          const key = (w.word||'').toLowerCase();
+          if (byWord[key]) {
+            const arts = byWord[key];
+            w.art_source   = arts.map(a=>a.source).join('|');
+            w.art_url      = arts.map(a=>a.url).join('|');
+            w.art_ctx_vi   = arts.map(a=>a.ctx_vi).join('|');
+            w.art_quote    = arts.map(a=>a.quote).join('|');
+            w.art_quote_vi = arts.map(a=>a.quote_vi).join('|');
+            successWords.push(w.word);
+          }
+        });
+        // Tìm từ trong file nhưng không khớp trong pack
+        Object.keys(byWord).forEach(key => {
+          const matched = words.some(w => (w.word||'').toLowerCase() === key);
+          if (!matched) failWords.push(byWord[key][0] ? key : key);
+        });
+        await saveData();
+
+        // Nếu là admin pack → cũng lưu lên adminPacks
+        if (currentPack && currentPack.isAdmin && isAdmin()) {
+          try {
+            await window._setDoc(
+              window._doc(window._db, 'adminPacks', currentPack.id),
+              { words: words, updatedAt: Date.now() },
+              { merge: true }
+            );
+            await _bumpAppVersion();
+          } catch(err2) { console.warn('Admin pack sync error:', err2); }
+        }
+      } else {
+        // Không có pack đang mở
+        Object.keys(byWord).forEach(key => failWords.push(key));
+      }
+
+      // ── Báo cáo ──
+      const packName = currentPack ? currentPack.name : 'Gói hiện tại';
+      let html = `
+        <div style="background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;font-size:0.75rem;line-height:1.9">
+          <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px">
+            <span>📄 File: <strong style="color:var(--neon-cyan)">${totalCtxWords}</strong> từ</span>
+            <span>✅ Gắn thành công: <strong style="color:var(--neon-green)">${successWords.length}</strong> từ</span>
+            <span>❌ Chưa khớp: <strong style="color:var(--neon-pink)">${failWords.length}</strong> từ</span>
+          </div>`;
+      if (failWords.length > 0) {
+        const failList = failWords.map(w=>`<span style="display:inline-block;background:rgba(255,0,110,0.1);border:1px solid rgba(255,0,110,0.25);border-radius:6px;padding:2px 8px;margin:2px;font-family:'Space Mono',monospace;font-size:0.68rem;color:rgba(255,100,130,0.9)">${h(w)}</span>`).join('');
+        html += `<div style="font-size:0.62rem;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,0,110,0.5);margin-bottom:6px">Danh sách từ chưa gán được</div>
+          <div style="line-height:2">${failList}</div>`;
+      } else {
+        html += `<div style="color:rgba(57,255,20,0.7);font-size:0.72rem">🎉 Tất cả từ trong file đã được gắn thành công!</div>`;
+      }
+      html += `</div>`;
+      res.innerHTML = html;
+      showToast('success', `✓ Gắn ngữ cảnh: ${successWords.length}/${totalCtxWords} từ trong "${packName}"`);
+      renderList();
+    } catch(err) {
+      res.innerHTML = `<span style="color:var(--neon-pink)">✕ Lỗi: ${h(err.message)}</span>`;
+      showToast('error','✕ '+err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
 </script>
 </body>
 </html>
