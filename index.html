@@ -5812,7 +5812,14 @@ if (!navigator.onLine) _showOfflineBanner(true);
           <div class="dl-hard-count-bar" id="dlHardCountBar"></div>
         </div>
         <div class="dl-hard-banner" id="dlHardBanner">
-          <span>🔥</span><span id="dlHardBannerText">Đang học loop từ khó</span>
+          <span>🔥</span>
+          <span id="dlHardBannerText">Đang học loop từ khó</span>
+          <button onclick="dlPauseHardLoop()" style="
+            margin-left:auto;padding:2px 10px;border-radius:20px;cursor:pointer;
+            border:1px solid rgba(255,140,0,0.4);background:rgba(255,140,0,0.1);
+            color:rgba(255,140,0,0.8);font-family:'Space Mono',monospace;
+            font-size:0.58rem;font-weight:700;letter-spacing:0.06em;transition:all 0.15s;
+          ">TẠM DỪNG ✕</button>
         </div>
         <div class="dl-card-progress" id="dlCardProgress">1 từ</div>
         <div class="dl-card-word"     id="dlCardWord">—</div>
@@ -6272,11 +6279,7 @@ function dlNext(correctWord) {
   }
 
   dlIndex++;
-  // Nếu đang trong hard loop và đã qua hết → kết thúc hard loop
-  if (dlInHardLoop && dlIndex >= dlQueue.length) {
-    dlEndHardLoop();
-    return;
-  }
+  // Hard loop xoay vòng liên tục — chỉ kết thúc khi hết từ (dlMarkMastered xử lý)
   if (dlIndex >= dlQueue.length) dlIndex = 0;
   const cp = DL_CHECKPOINT.find(c => c.n === dlWordsCount);
   if (cp) dlShowCheckpoint(cp);
@@ -6394,8 +6397,10 @@ function dlToggleHard() {
     if (dlIndex >= dlQueue.length) dlIndex = 0;
 
     if (dlHardWords.length >= maxHard) {
-      // Đủ loop từ khó → bắt đầu ngay
-      _dlToast('⚑ "' + w.word + '" — Đủ ' + maxHard + ' từ khó!');
+      // Đủ loop từ khó → bắt đầu ngay (kể cả khi đang tạm dừng)
+      _dlToast('⚑ Đủ ' + maxHard + ' từ khó — bắt đầu loop!');
+      // Cập nhật dlHardLoopQueue = queue hiện tại trước khi vào hard loop
+      dlHardLoopQueue = [...dlQueue];
       setTimeout(dlStartHardLoop, 800);
     } else {
       _dlToast('⚑ "' + w.word + '" vào nhóm từ khó (' + dlHardWords.length + '/' + maxHard + ')');
@@ -6418,14 +6423,51 @@ function dlStartHardLoop() {
   const banner = document.getElementById('dlHardBanner');
   const bannerText = document.getElementById('dlHardBannerText');
   if (banner) { banner.classList.add('visible'); }
-  if (bannerText) bannerText.textContent = 'Loop từ khó — ' + dlQueue.length + ' từ';
+  if (bannerText) bannerText.textContent = 'Loop từ khó — bấm Đã thuộc để kết thúc';
 
   // Ẩn hard count dots khi đang trong loop
   const countEl = document.getElementById('dlHardCount');
   if (countEl) countEl.classList.remove('visible');
 
+  // Reset dlCorrectMap cho các từ khó để tính lại
+  dlHardWords.forEach(hw => { dlCorrectMap[hw.word] = 0; });
+
   dlRenderCard();
-  _dlCheckpointPopup('🔥', 'Loop từ khó bắt đầu!', 'Tập trung vào ' + dlQueue.length + ' từ này');
+  _dlCheckpointPopup('🔥', 'Loop từ khó bắt đầu!', 'Học đến khi tích hết ' + dlQueue.length + ' từ');
+}
+
+// ── Tạm dừng hard loop → về học bình thường, giữ nguyên dlHardWords ──
+function dlPauseHardLoop() {
+  dlInHardLoop = false;
+
+  // Khôi phục queue cũ, bỏ các từ đang trong hard loop (chúng vẫn nằm trong dlHardWords)
+  const hardSet = new Set(dlHardWords.map(x => x.word));
+  dlQueue = dlHardLoopQueue.filter(w => !hardSet.has(w.word));
+
+  // Nếu queue cũ rỗng, build lại
+  if (!dlQueue.length) {
+    buildQueue();
+    const pool = studyQueue.length
+      ? [...studyQueue]
+      : words.filter(w => !w.hidden && !w.mastered).map(w => ({...w}));
+    dlQueue = (loopSize > 0 && pool.length > 0)
+      ? pool.slice(0, Math.min(loopSize, pool.length))
+      : [...pool];
+    // Bỏ các từ đang trong hard pool
+    dlQueue = dlQueue.filter(w => !hardSet.has(w.word));
+  }
+
+  dlIndex = 0;
+
+  // Ẩn banner
+  const banner = document.getElementById('dlHardBanner');
+  if (banner) banner.classList.remove('visible');
+
+  // Hiện lại dots counter để người dùng thấy còn bao nhiêu từ khó đang chờ
+  dlUpdateHardCount();
+
+  dlRenderCard();
+  _dlToast('Đã tạm dừng loop từ khó · ' + dlHardWords.length + ' từ đang chờ');
 }
 
 // ── Kết thúc hard loop → quay về queue thường ──
@@ -6527,19 +6569,26 @@ function dlMarkMastered() {
   // Remove from dlQueue
   dlQueue.splice(dlIndex, 1);
 
-  // Thêm từ mới vào bù — chỉ thêm nếu loopSize=0 hoặc queue còn thiếu chỗ
-  const shouldAddNew = (loopSize === 0) || (dlQueue.length < loopSize);
-  if (shouldAddNew) {
-    const inQueue = new Set(dlQueue.map(x => x.word));
-    const candidates = words.filter(w2 => !w2.mastered && !w2.hidden && !inQueue.has(w2.word));
-    if (candidates.length) {
-      dlQueue.push({ ...candidates[Math.floor(Math.random() * candidates.length)] });
+  // Thêm từ mới vào bù — KHÔNG thêm khi đang trong hard loop
+  if (!dlInHardLoop) {
+    const shouldAddNew = (loopSize === 0) || (dlQueue.length < loopSize);
+    if (shouldAddNew) {
+      const inQueue = new Set(dlQueue.map(x => x.word));
+      const candidates = words.filter(w2 => !w2.mastered && !w2.hidden && !inQueue.has(w2.word));
+      if (candidates.length) {
+        dlQueue.push({ ...candidates[Math.floor(Math.random() * candidates.length)] });
+      }
     }
   }
 
   if (!dlQueue.length) {
-    // All words mastered!
-    dlFinish(); return;
+    if (dlInHardLoop) {
+      // Hết từ trong hard loop → kết thúc hard loop, về học bình thường
+      dlEndHardLoop();
+    } else {
+      dlFinish();
+    }
+    return;
   }
 
   if (dlIndex >= dlQueue.length) dlIndex = 0;
