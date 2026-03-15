@@ -1589,6 +1589,23 @@ const IDB = (() => {
     font-size:0.6rem; color:rgba(255,255,255,0.2); font-family:'Space Mono',monospace;
     pointer-events:none;
   }
+  /* ── Char-diff overlay (hiện sau khi check sai) ── */
+  .dl-char-diff {
+    display:none; align-items:center; gap:1px; flex-wrap:wrap;
+    margin-top:8px; padding:8px 14px;
+    background:rgba(255,0,110,0.06); border:1px solid rgba(255,0,110,0.2);
+    border-radius:10px; font-family:'Space Mono',monospace; font-size:1rem;
+    letter-spacing:0.06em; line-height:1;
+  }
+  .dl-char-diff.show { display:flex; }
+  .dl-char-diff .dc-ok  { color:var(--neon-green); }
+  .dl-char-diff .dc-err { color:var(--neon-pink); text-decoration:underline wavy var(--neon-pink); }
+  .dl-char-diff .dc-mis { color:rgba(255,0,110,0.45); font-style:italic; }
+  .dl-char-diff-label {
+    display:none; font-size:0.6rem; color:rgba(255,255,255,0.3);
+    font-family:'Space Mono',monospace; letter-spacing:0.1em; margin-top:4px;
+  }
+  .dl-char-diff-label.show { display:block; }
 
   /* Action buttons */
   .dl-actions { display:flex; gap:10px; margin-bottom:14px; }
@@ -1656,37 +1673,6 @@ const IDB = (() => {
   }
   .dl-exit-btn.show { display:flex; }
   .dl-exit-btn:hover { border-color:rgba(255,0,110,0.4); color:rgba(255,0,110,0.7); }
-
-  /* Letter-by-letter word display */
-  .dl-word-letters {
-    display:flex; gap:3px; justify-content:center; flex-wrap:wrap;
-    margin:10px 0 6px; min-height:52px; align-items:center;
-  }
-  .dl-letter {
-    display:inline-flex; align-items:center; justify-content:center;
-    width:32px; height:44px; border-radius:6px;
-    font-family:'Plus Jakarta Sans',sans-serif; font-size:1.6rem; font-weight:800;
-    border-bottom:2px solid rgba(255,255,255,0.15);
-    color:rgba(255,255,255,0.2); transition:color 0.1s, border-color 0.1s, background 0.15s;
-    position:relative;
-  }
-  .dl-letter.space { width:14px; border-bottom:none; }
-  .dl-letter.correct {
-    color:#fff; border-bottom-color:var(--neon-cyan);
-  }
-  .dl-letter.wrong {
-    color:var(--neon-pink); border-bottom-color:var(--neon-pink);
-    background:rgba(255,0,110,0.08);
-  }
-  .dl-letter.cursor::after {
-    content:''; position:absolute; bottom:-3px; left:50%; transform:translateX(-50%);
-    width:2px; height:4px; background:var(--neon-purple);
-    border-radius:1px; animation:dlBlink 0.9s step-end infinite;
-  }
-  /* Hidden real input */
-  .dl-hidden-input {
-    position:absolute; opacity:0; pointer-events:none; width:1px; height:1px;
-  }
 
   /* Virtual keyboard (mobile only) */
   .dl-vkb {
@@ -5927,20 +5913,23 @@ if (!navigator.onLine) _showOfflineBanner(true);
         <div class="dl-card-meaning"  id="dlCardMeaning"></div>
         <button class="dl-hard-btn" id="dlHardBtn" onclick="dlToggleHard()">⚑ Từ khó</button>
       </div>
-      <div class="dl-write-area" onclick="document.getElementById('dlHiddenInput').focus()">
+      <div class="dl-write-area">
         <div class="dl-write-label">Gõ lại từ trên đây</div>
-        <!-- Letter display -->
-        <div class="dl-word-letters" id="dlWordLetters"></div>
-        <!-- Hidden real input (captures keystrokes) -->
-        <input class="dl-hidden-input" id="dlHiddenInput" type="text"
-          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-          inputmode="text" enterkeyhint="go"
-          oninput="dlOnLetterInput(this.value)"
-          onkeydown="dlOnLetterKey(event)">
-        <!-- Check button (mobile fallback) -->
-        <div style="text-align:center;margin-top:8px">
-          <button class="dl-check-btn" id="dlCheckBtn" onclick="dlCheckInput()" style="max-width:120px;border-radius:10px;padding:10px 20px;font-size:0.8rem">Enter ↵</button>
+        <!-- Desktop input -->
+        <div class="dl-input-row" id="dlDesktopInput">
+          <div class="dl-input-wrap">
+            <input class="dl-input" id="dlInput" type="text"
+              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+              inputmode="search" enterkeyhint="go"
+              placeholder="Gõ lại từ..."
+              onkeydown="if(event.key==='Enter')dlCheckInput()"
+              oninput="dlClearCharDiff()"
+              onsearch="dlCheckInput()">
+          </div>
+          <button class="dl-check-btn" id="dlCheckBtn" onclick="dlCheckInput()">✓</button>
         </div>
+        <div class="dl-char-diff" id="dlCharDiff"></div>
+        <div class="dl-char-diff-label" id="dlCharDiffLabel">Các ký tự sai được gạch chân đỏ</div>
         <!-- Virtual keyboard (mobile) -->
         <div class="dl-vkb" id="dlVkb">
           <div class="dl-vkb-display" id="dlVkbDisplay">
@@ -6161,7 +6150,6 @@ let dlMastered    = 0;   // số từ mark đã thuộc trong session
 let dlTimerEnd    = 0;
 let dlTimerRAF    = null;
 let dlCorrectMap  = {};  // word -> số lần gõ đúng liên tiếp
-let dlTyped       = '';  // chuỗi user đang gõ (realtime)
 let dlHardWords   = [];  // danh sách từ khó hiện tại
 let dlInHardLoop  = false; // đang trong loop từ khó hay không
 let dlHardLoopQueue = []; // queue riêng khi đang học loop từ khó
@@ -6310,12 +6298,9 @@ function dlRenderCard() {
   viEl.style.filter  = dlHideVI ? 'blur(8px)' : 'none';
   viEl.style.userSelect = dlHideVI ? 'none' : '';
 
-  // Reset typed state
-  dlTyped = '';
-  dlRenderLetters('', dlQueue[dlIndex]?.word || '');
-  // Focus hidden input
-  const hi = document.getElementById('dlHiddenInput');
-  if (hi) { hi.value = ''; hi.focus(); }
+  const inp = document.getElementById('dlInput');
+  if (inp) { inp.value = ''; inp.className = 'dl-input'; if (window.innerWidth > 768) inp.focus(); }
+  dlClearCharDiff();
   dlVkbReset();
 
   // Sync hard word button
@@ -6351,80 +6336,66 @@ function dlToggleField(field) {
   dlRenderCard(); // re-apply visibility
 }
 
-// ── Render letters (MonkeyType style) ──
-function dlRenderLetters(typed, target) {
-  const container = document.getElementById('dlWordLetters');
-  if (!container) return;
-  const chars = target.split('');
-  container.innerHTML = chars.map((ch, i) => {
-    let cls = 'dl-letter';
-    if (ch === ' ') cls += ' space';
-    if (i < typed.length) {
-      cls += typed[i] === ch ? ' correct' : ' wrong';
-    } else if (i === typed.length) {
-      cls += ' cursor';
-    }
-    return `<span class="${cls}">${ch === ' ' ? '&nbsp;' : ch}</span>`;
-  }).join('');
-}
-
-// ── Input realtime handler ──
-function dlOnLetterInput(val) {
-  const word = (dlQueue[dlIndex]?.word || '').trim();
-  // Chỉ cho gõ tối đa độ dài từ
-  if (val.length > word.length) {
-    const hi = document.getElementById('dlHiddenInput');
-    if (hi) hi.value = val.slice(0, word.length);
-    val = val.slice(0, word.length);
-  }
-  dlTyped = val;
-  dlRenderLetters(val, word);
-  // Cũng sync vkb display nếu đang dùng
-  const vt = document.getElementById('dlVkbText');
-  if (vt) vt.textContent = val;
-}
-
-// ── Key handler — Enter để check ──
-function dlOnLetterKey(e) {
-  if (e.key === 'Enter') { e.preventDefault(); dlCheckInput(); }
-}
-
 // ── Check input ──
 function dlCheckInput() {
+  const inp  = document.getElementById('dlInput');
+  if (!inp) return;
+  const val  = inp.value.trim().toLowerCase();
   const word = (dlQueue[dlIndex]?.word || '').toLowerCase().trim();
-  const val  = dlTyped.trim().toLowerCase();
   if (!val) return;
 
   if (val === word) {
-    // Flash green trên tất cả letters
-    dlRenderLettersResult(true, dlQueue[dlIndex]?.word || '');
-    dlConfetti(document.getElementById('dlWordLetters'));
-    xpOnFlashcardAction();
-    setTimeout(() => dlNext(word), 500);
+    dlClearCharDiff();
+    inp.classList.add('correct');
+    dlConfetti(inp);
+    xpOnFlashcardAction(); // active time
+    setTimeout(() => dlNext(word), 550);
   } else {
-    // Flash red, rồi reset
-    dlRenderLettersResult(false, dlQueue[dlIndex]?.word || '');
     dlCorrectMap[word] = 0;
-    setTimeout(() => {
-      dlTyped = '';
-      const hi = document.getElementById('dlHiddenInput');
-      if (hi) { hi.value = ''; hi.focus(); }
-      dlRenderLetters('', dlQueue[dlIndex]?.word || '');
-    }, 700);
+    inp.classList.add('wrong');
+    dlShowCharDiff(val, word);
+    setTimeout(() => { inp.classList.remove('wrong'); inp.value = ''; inp.focus(); }, 800);
   }
 }
 
-// ── Flash result colors ──
-function dlRenderLettersResult(correct, target) {
-  const container = document.getElementById('dlWordLetters');
-  if (!container) return;
-  const color = correct ? 'var(--neon-green)' : 'var(--neon-pink)';
-  const bg    = correct ? 'rgba(57,255,20,0.08)' : 'rgba(255,0,110,0.08)';
-  container.querySelectorAll('.dl-letter:not(.space)').forEach(el => {
-    el.style.color       = color;
-    el.style.borderColor = color;
-    el.style.background  = bg;
-  });
+// ── Hiển thị diff từng ký tự ──
+function dlShowCharDiff(typed, correct) {
+  const el    = document.getElementById('dlCharDiff');
+  const label = document.getElementById('dlCharDiffLabel');
+  if (!el) return;
+
+  let html = '';
+  const len = Math.max(typed.length, correct.length);
+  for (let i = 0; i < len; i++) {
+    const tc = typed[i];
+    const cc = correct[i];
+    if (!cc) {
+      // Gõ thừa ký tự
+      html += `<span class="dc-err">${_esc(tc)}</span>`;
+    } else if (!tc) {
+      // Thiếu ký tự
+      html += `<span class="dc-mis">${_esc(cc)}</span>`;
+    } else if (tc === cc) {
+      html += `<span class="dc-ok">${_esc(tc)}</span>`;
+    } else {
+      html += `<span class="dc-err">${_esc(tc)}</span>`;
+    }
+  }
+  el.innerHTML = html;
+  el.classList.add('show');
+  if (label) label.classList.add('show');
+}
+
+// ── Xóa diff khi bắt đầu gõ lại ──
+function dlClearCharDiff() {
+  const el    = document.getElementById('dlCharDiff');
+  const label = document.getElementById('dlCharDiffLabel');
+  if (el)    { el.classList.remove('show'); el.innerHTML = ''; }
+  if (label) label.classList.remove('show');
+}
+
+function _esc(c) {
+  return c === ' ' ? '&nbsp;' : c.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 // ── Next ── (gọi sau khi gõ đúng — truyền word vừa đúng)
@@ -6899,15 +6870,11 @@ function dlVkbPress(key) {
   if (key === '⌫') {
     dlVkbValue = dlVkbValue.slice(0, -1);
   } else if (key === 'ENTER') {
-    dlCheckInput();
+    dlVkbCheck();
     return;
   } else {
-    const word = dlQueue[dlIndex]?.word || '';
-    if (dlVkbValue.length >= word.length) return; // max length
     dlVkbValue += key;
   }
-  dlTyped = dlVkbValue;
-  dlRenderLetters(dlVkbValue, dlQueue[dlIndex]?.word || '');
   dlVkbRender();
 }
 
@@ -6916,11 +6883,33 @@ function dlVkbRender() {
   if (el) el.textContent = dlVkbValue;
 }
 
-// dlVkbCheck merged into dlCheckInput (uses dlTyped)
+function dlVkbCheck() {
+  const val  = dlVkbValue.trim().toLowerCase();
+  const word = (dlQueue[dlIndex]?.word || '').toLowerCase().trim();
+  const disp = document.getElementById('dlVkbDisplay');
+  if (!val) return;
+
+  if (val === word) {
+    disp.classList.add('correct');
+    dlConfetti(disp);
+    xpOnFlashcardAction(); // active time
+    setTimeout(() => {
+      disp.classList.remove('correct');
+      dlVkbValue = ''; dlVkbRender();
+      dlNext(word);
+    }, 550);
+  } else {
+    dlCorrectMap[word] = 0;
+    disp.classList.add('wrong');
+    setTimeout(() => {
+      disp.classList.remove('wrong');
+      dlVkbValue = ''; dlVkbRender();
+    }, 700);
+  }
+}
 
 function dlVkbReset() {
   dlVkbValue = '';
-  dlTyped    = '';
   dlVkbRender();
   const disp = document.getElementById('dlVkbDisplay');
   if (disp) disp.className = 'dl-vkb-display';
