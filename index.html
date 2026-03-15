@@ -4653,12 +4653,24 @@ async function openAdminDetail(uid) {
 
   // Load full user data
   try {
-    const snap = await window._getDoc(window._doc(window._db,'users',uid));
-    _currentDetailData = snap.exists() ? snap.data() : {};
-    const userPacks = _currentDetailData.packs || [];
+    const [userSnap, xpSnap] = await Promise.all([
+      window._getDoc(window._doc(window._db,'users',uid)),
+      window._getDoc(window._doc(window._db,'users',uid,'xp','data')).catch(()=>null),
+    ]);
+    _currentDetailData = userSnap.exists() ? userSnap.data() : {};
+    const xpData       = xpSnap && xpSnap.exists() ? xpSnap.data() : {};
+    const userPacks    = _currentDetailData.packs || [];
     const studyHistory = _currentDetailData.studyHistory || {};
 
-    // Load pack details
+    // XP & engagement stats
+    const totalXP     = xpData.total || 0;
+    const streak      = xpData.loginStreakDays || 0;
+    const activeByDay = xpData.activeMinutesByDay || {};
+    const totalMins   = Object.values(activeByDay).reduce((s,v)=>s+(v||0),0);
+    const readingDone = (xpData.readingDone || []).length;
+    const fmtMin = m => m < 60 ? m+'p' : Math.floor(m/60)+'g'+(m%60 ? (m%60)+'p' : '');
+
+    // Pack details
     const packResults = await Promise.all(
       userPacks.map(async p => {
         try {
@@ -4670,38 +4682,69 @@ async function openAdminDetail(uid) {
     );
     _currentDetailPacks = packResults;
 
-    const totalWords = packResults.reduce((s,p)=>s+p.words.length,0);
+    const totalWords    = packResults.reduce((s,p)=>s+p.words.length,0);
     const totalMastered = packResults.reduce((s,p)=>s+p.mastered,0);
-    const totalDays = Object.keys(studyHistory).length;
+    const totalDays     = Object.keys(studyHistory).length;
 
-    // Overview stats
+    // Overview stats — 6 chỉ số
+    document.getElementById('adminDetailStats').style.gridTemplateColumns = 'repeat(3,1fr)';
     document.getElementById('adminDetailStats').innerHTML = `
-      <div class="admin-user-stat"><div class="admin-user-stat-val">${packResults.length}</div><div class="admin-user-stat-lbl">Gói từ</div></div>
+      <div class="admin-user-stat"><div class="admin-user-stat-val yellow">${totalXP}</div><div class="admin-user-stat-lbl">Tổng XP</div></div>
       <div class="admin-user-stat"><div class="admin-user-stat-val green">${totalMastered}</div><div class="admin-user-stat-lbl">Đã thuộc</div></div>
-      <div class="admin-user-stat"><div class="admin-user-stat-val yellow">${totalDays}</div><div class="admin-user-stat-lbl">Ngày học</div></div>
+      <div class="admin-user-stat"><div class="admin-user-stat-val">${totalWords}</div><div class="admin-user-stat-lbl">Tổng từ</div></div>
+      <div class="admin-user-stat"><div class="admin-user-stat-val" style="color:var(--neon-purple)">${fmtMin(totalMins)}</div><div class="admin-user-stat-lbl">Giờ học</div></div>
+      <div class="admin-user-stat"><div class="admin-user-stat-val yellow">${streak}</div><div class="admin-user-stat-lbl">Streak 🔥</div></div>
+      <div class="admin-user-stat"><div class="admin-user-stat-val" style="color:var(--neon-pink)">${readingDone}</div><div class="admin-user-stat-lbl">Bài đọc</div></div>
     `;
 
     // Overview info
     const lastSeen = u.lastSeen ? new Date(u.lastSeen).toLocaleString('vi-VN') : '—';
+    const joinDate = u.approvedAt ? new Date(u.approvedAt).toLocaleDateString('vi-VN') : '—';
     document.getElementById('adminDetailInfo').innerHTML = `
-      <div>🆔 UID: <span style="color:rgba(255,255,255,0.7);font-size:0.68rem">${uid}</span></div>
+      <div>🆔 UID: <span style="color:rgba(255,255,255,0.5);font-size:0.65rem">${uid}</span></div>
       <div>📧 Email: <span style="color:var(--neon-cyan)">${h(u.email)}</span></div>
-      <div>📚 Tổng từ vựng: <span style="color:#fff;font-weight:700">${totalWords}</span></div>
+      <div>📦 Gói từ: <span style="color:#fff;font-weight:700">${packResults.length} gói · ${totalWords} từ</span></div>
+      <div>📅 Số ngày học: <span style="color:#fff;font-weight:700">${totalDays} ngày</span></div>
+      <div>🗓 Tham gia: <span style="color:rgba(255,255,255,0.6)">${joinDate}</span></div>
       <div>🕒 Hoạt động cuối: <span style="color:rgba(255,255,255,0.6)">${lastSeen}</span></div>
     `;
 
     // Packs tab
     renderAdminDetailPacks();
 
-    // History tab
-    const histDays = Object.keys(studyHistory).sort().reverse();
-    document.getElementById('adminDetailHistory').innerHTML = histDays.length
-      ? histDays.map(d=>`
-          <div class="admin-history-row">
-            <span class="admin-hist-date">📅 ${d}</span>
-            <span class="admin-hist-val">${studyHistory[d]} từ đã học</span>
-          </div>`).join('')
-      : '<div style="color:rgba(255,255,255,0.25);font-size:0.78rem;padding:16px;text-align:center">Chưa có lịch sử học tập.</div>';
+    // History tab — gộp tất cả nguồn dữ liệu theo ngày
+    const allDates = new Set([
+      ...Object.keys(studyHistory),
+      ...Object.keys(activeByDay),
+      ...Object.keys(xpData).filter(k=>k.startsWith('day_')).map(k=>k.slice(4)),
+    ]);
+    const sortedDates = [...allDates].sort().reverse();
+
+    // Build history HTML
+    const buildHistRows = () => sortedDates.slice(0,90).map(d => {
+      const w     = studyHistory[d] || 0;
+      const m     = activeByDay[d]  || 0;
+      const xpDay = xpData['day_'+d];
+      const xp    = xpDay && typeof xpDay==='object' ? (xpDay.xp||0) : (xpDay||0);
+      const fade  = (!w && !m && !xp) ? 'opacity:0.3;' : '';
+      return '<div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:4px;' +
+        'padding:7px 10px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.72rem;' + fade + '">' +
+        '<span style="font-family:monospace;color:rgba(255,255,255,0.5)">'+d+'</span>' +
+        '<span style="text-align:right;color:var(--neon-cyan);font-weight:700">'+(w||'—')+'</span>' +
+        '<span style="text-align:right;color:var(--neon-purple)">'+(m?fmtMin(m):'—')+'</span>' +
+        '<span style="text-align:right;color:var(--neon-yellow)">'+(xp||'—')+'</span>' +
+        '</div>';
+    }).join('');
+
+    const histHeader = '<div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:4px;' +
+      'font-size:0.58rem;color:rgba(255,255,255,0.3);letter-spacing:0.1em;text-transform:uppercase;' +
+      'padding:6px 10px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:monospace;margin-bottom:2px">' +
+      '<span>Ngày</span><span style="text-align:right">Từ học</span>' +
+      '<span style="text-align:right">Active</span><span style="text-align:right">XP</span></div>';
+
+    document.getElementById('adminDetailHistory').innerHTML = sortedDates.length
+      ? histHeader + buildHistRows()
+      : '<div style="color:rgba(255,255,255,0.25);font-size:0.78rem;padding:20px;text-align:center">Chưa có lịch sử hoạt động.</div>';
 
   } catch(e) {
     document.getElementById('adminDetailStats').innerHTML = `<div style="color:var(--neon-pink);font-size:0.8rem;grid-column:span 3">✕ Lỗi tải dữ liệu: ${e.message}</div>`;
