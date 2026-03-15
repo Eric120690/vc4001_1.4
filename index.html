@@ -6396,15 +6396,14 @@ function dlToggleHard() {
     // Clamp index
     if (dlIndex >= dlQueue.length) dlIndex = 0;
 
-    if (dlHardWords.length >= maxHard) {
-      // Đủ loop từ khó → bắt đầu ngay (kể cả khi đang tạm dừng)
+    if (dlHardWords.length >= maxHard && !dlInHardLoop) {
+      // Đủ loop từ khó → bắt đầu ngay
       _dlToast('⚑ Đủ ' + maxHard + ' từ khó — bắt đầu loop!');
-      // Cập nhật dlHardLoopQueue = queue hiện tại trước khi vào hard loop
-      dlHardLoopQueue = [...dlQueue];
+      dlHardLoopQueue = [...dlQueue]; // snapshot queue hiện tại
       setTimeout(dlStartHardLoop, 800);
     } else {
       _dlToast('⚑ "' + w.word + '" vào nhóm từ khó (' + dlHardWords.length + '/' + maxHard + ')');
-      dlRenderCard(); // render từ tiếp theo (từ vừa xóa đã không còn trong queue)
+      dlRenderCard();
     }
   }
 }
@@ -6564,6 +6563,10 @@ function dlMarkMastered() {
     recordStudyActivity(1);
     refreshStatsBar();
     updateStudyBadge();
+  }
+  // Nếu đang trong hard loop → xóa khỏi dlHardWords để dots cập nhật đúng
+  if (dlInHardLoop) {
+    dlHardWords = dlHardWords.filter(x => x.word !== w.word);
   }
 
   // Remove from dlQueue
