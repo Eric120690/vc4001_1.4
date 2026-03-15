@@ -1420,6 +1420,291 @@ const IDB = (() => {
   .admin-history-row { display:flex; justify-content:space-between; padding:7px 12px; background:var(--glass); border-radius:8px; font-size:0.73rem; margin-bottom:4px; }
   .admin-hist-date { color:rgba(255,255,255,0.4); }
   .admin-hist-val { color:var(--neon-cyan); font-weight:700; }
+
+  /* ===== DEEP LEARNING MODE ===== */
+  /* Toggle button replacing "Tự đọc" */
+  .dl-toggle-btn {
+    display:inline-flex; align-items:center; gap:7px;
+    padding:5px 13px; border-radius:20px; cursor:pointer;
+    font-family:'Space Mono',monospace; font-size:0.65rem; font-weight:700;
+    letter-spacing:0.08em; text-transform:uppercase; transition:all 0.25s;
+    border:1px solid rgba(191,0,255,0.3); background:rgba(191,0,255,0.08); color:rgba(191,0,255,0.7);
+    user-select:none;
+  }
+  .dl-toggle-btn:hover { border-color:rgba(191,0,255,0.6); background:rgba(191,0,255,0.14); color:var(--neon-purple); }
+  .dl-toggle-btn.active {
+    border-color:var(--neon-purple); background:rgba(191,0,255,0.2);
+    color:var(--neon-purple); box-shadow:0 0 14px rgba(191,0,255,0.3);
+    animation:dlPulse 2.5s ease infinite;
+  }
+  .dl-toggle-dot {
+    width:6px; height:6px; border-radius:50%; background:rgba(191,0,255,0.5); transition:all 0.25s;
+  }
+  .dl-toggle-btn.active .dl-toggle-dot { background:var(--neon-purple); box-shadow:0 0 6px var(--neon-purple); animation:pulse 1.5s infinite; }
+  @keyframes dlPulse { 0%,100%{box-shadow:0 0 10px rgba(191,0,255,0.25)} 50%{box-shadow:0 0 22px rgba(191,0,255,0.5)} }
+
+  /* Overlay full screen */
+  .dl-overlay {
+    display:none; position:fixed; inset:0; z-index:300;
+    background:rgba(3,3,15,0.97); backdrop-filter:blur(12px);
+    flex-direction:column; align-items:center; justify-content:center;
+    padding:24px 20px;
+  }
+  .dl-overlay.show { display:flex; }
+
+  /* ── Intro screen ── */
+  .dl-intro {
+    max-width:440px; width:100%; text-align:center;
+    animation:fadeUp 0.4s ease;
+  }
+  .dl-intro-icon { font-size:3rem; display:block; margin-bottom:16px; }
+  .dl-intro-title {
+    font-family:'Syne',sans-serif; font-size:1.6rem; font-weight:800; letter-spacing:0.05em;
+    background:linear-gradient(135deg, var(--neon-purple), var(--neon-cyan));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    margin-bottom:8px;
+  }
+  .dl-intro-badge {
+    display:inline-block; font-size:0.58rem; letter-spacing:0.2em; text-transform:uppercase;
+    color:rgba(191,0,255,0.7); border:1px solid rgba(191,0,255,0.3); border-radius:20px;
+    padding:3px 12px; margin-bottom:20px; font-family:'Space Mono',monospace;
+  }
+  .dl-intro-msg {
+    font-size:0.88rem; color:rgba(255,255,255,0.6); line-height:1.85;
+    background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07);
+    border-radius:16px; padding:20px 24px; margin-bottom:24px; text-align:left;
+  }
+  .dl-intro-msg strong { color:#fff; }
+  /* Duration selector */
+  .dl-duration-row {
+    display:flex; gap:10px; justify-content:center; margin-bottom:24px;
+  }
+  .dl-dur-btn {
+    flex:1; max-width:90px; padding:10px 0; border-radius:12px; cursor:pointer;
+    font-family:'Space Mono',monospace; font-size:0.88rem; font-weight:700; transition:all 0.18s;
+    background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.4);
+  }
+  .dl-dur-btn:hover { border-color:rgba(191,0,255,0.4); color:var(--neon-purple); }
+  .dl-dur-btn.active { background:rgba(191,0,255,0.15); border-color:var(--neon-purple); color:var(--neon-purple); box-shadow:0 0 10px rgba(191,0,255,0.2); }
+  .dl-dur-btn span { display:block; font-size:0.58rem; font-weight:400; opacity:0.5; margin-top:2px; letter-spacing:0.05em; }
+  .dl-start-btn {
+    width:100%; padding:15px; border-radius:14px; border:none; cursor:pointer;
+    font-family:'Syne',sans-serif; font-size:1rem; font-weight:800; letter-spacing:0.1em; text-transform:uppercase;
+    background:linear-gradient(135deg, var(--neon-purple), var(--neon-cyan)); color:#000;
+    transition:all 0.2s;
+  }
+  .dl-start-btn:hover { transform:translateY(-2px); box-shadow:0 8px 30px rgba(191,0,255,0.4); }
+
+  /* ── Countdown screen ── */
+  .dl-countdown {
+    text-align:center; animation:fadeUp 0.3s ease;
+  }
+  .dl-countdown-num {
+    font-family:'Syne',sans-serif; font-size:8rem; font-weight:800; line-height:1;
+    background:linear-gradient(135deg, var(--neon-purple), var(--neon-cyan));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    animation:countPop 0.5s ease;
+  }
+  @keyframes countPop { 0%{transform:scale(1.5);opacity:0} 100%{transform:scale(1);opacity:1} }
+  .dl-countdown-label { font-size:0.8rem; color:rgba(255,255,255,0.3); letter-spacing:0.3em; text-transform:uppercase; margin-top:10px; }
+
+  /* ── Session screen ── */
+  .dl-session { width:100%; max-width:540px; display:flex; flex-direction:column; gap:0; }
+
+  /* Timer bar */
+  .dl-timer-bar-wrap {
+    display:flex; align-items:center; gap:12px; margin-bottom:20px;
+  }
+  .dl-timer-track {
+    flex:1; height:3px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden;
+  }
+  .dl-timer-fill {
+    height:100%; background:linear-gradient(90deg, var(--neon-purple), var(--neon-cyan));
+    border-radius:3px; transition:width 1s linear; box-shadow:0 0 6px rgba(0,245,255,0.4);
+  }
+  .dl-timer-clock {
+    font-family:'Space Mono',monospace; font-size:0.65rem; color:rgba(255,255,255,0.18);
+    letter-spacing:0.05em; min-width:36px; text-align:right;
+  }
+
+  /* Word display */
+  .dl-word-card {
+    background:linear-gradient(135deg, rgba(191,0,255,0.06), rgba(0,245,255,0.06));
+    border:1px solid rgba(191,0,255,0.2); border-radius:20px;
+    padding:28px 24px 22px; text-align:center; margin-bottom:16px;
+    position:relative; overflow:hidden;
+  }
+  .dl-word-card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:2px;
+    background:linear-gradient(90deg, var(--neon-purple), var(--neon-cyan));
+  }
+  .dl-card-progress {
+    font-family:'Space Mono',monospace; font-size:0.6rem; color:rgba(255,255,255,0.25);
+    letter-spacing:0.08em; margin-bottom:14px;
+  }
+  .dl-card-word {
+    font-family:'Plus Jakarta Sans',sans-serif; font-size:2.2rem; font-weight:800;
+    background:linear-gradient(135deg,#fff,rgba(191,0,255,0.8));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    margin-bottom:6px; line-height:1.2;
+  }
+  .dl-card-phonetic { font-size:0.85rem; color:var(--neon-cyan); opacity:0.8; margin-bottom:4px; }
+  .dl-card-meaning { font-size:0.92rem; color:rgba(255,255,255,0.65); margin-top:8px; line-height:1.5; }
+
+  /* Write area */
+  .dl-write-area { margin-bottom:14px; }
+  .dl-write-label {
+    font-size:0.6rem; letter-spacing:0.2em; text-transform:uppercase;
+    color:rgba(255,255,255,0.25); margin-bottom:8px; font-family:'Space Mono',monospace;
+  }
+  /* Canvas (mobile) */
+  .dl-canvas-wrap {
+    position:relative; border-radius:14px; overflow:hidden;
+    border:1px solid rgba(191,0,255,0.25); background:rgba(0,0,0,0.4);
+  }
+  #dlCanvas {
+    display:block; width:100%; height:110px; cursor:crosshair; touch-action:none;
+  }
+  .dl-canvas-clear {
+    position:absolute; top:8px; right:10px; background:rgba(255,255,255,0.08);
+    border:none; border-radius:8px; color:rgba(255,255,255,0.4); font-size:0.7rem;
+    padding:3px 8px; cursor:pointer; transition:all 0.15s;
+  }
+  .dl-canvas-clear:hover { background:rgba(255,0,110,0.15); color:var(--neon-pink); }
+  /* Input (desktop) */
+  .dl-input-wrap { position:relative; }
+  .dl-input {
+    width:100%; padding:13px 50px 13px 16px; border-radius:12px;
+    background:rgba(0,0,0,0.5); border:1px solid rgba(191,0,255,0.3);
+    color:#fff; font-family:'Space Mono',monospace; font-size:1rem;
+    outline:none; transition:border-color 0.2s; letter-spacing:0.06em;
+  }
+  .dl-input:focus { border-color:var(--neon-purple); box-shadow:0 0 16px rgba(191,0,255,0.2); }
+  .dl-input.correct { border-color:var(--neon-green); background:rgba(57,255,20,0.06); animation:correctFlash 0.4s ease; }
+  .dl-input.wrong   { border-color:var(--neon-pink);  background:rgba(255,0,110,0.06); animation:shake 0.35s ease; }
+  @keyframes correctFlash { 0%{box-shadow:0 0 0 rgba(57,255,20,0)} 40%{box-shadow:0 0 30px rgba(57,255,20,0.5)} 100%{box-shadow:0 0 0 rgba(57,255,20,0)} }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
+  .dl-input-hint {
+    position:absolute; right:14px; top:50%; transform:translateY(-50%);
+    font-size:0.6rem; color:rgba(255,255,255,0.2); font-family:'Space Mono',monospace;
+    pointer-events:none;
+  }
+
+  /* Action buttons */
+  .dl-actions { display:flex; gap:10px; margin-bottom:14px; }
+  .dl-btn-next {
+    flex:1; padding:13px; border-radius:12px; border:none; cursor:pointer;
+    font-family:'Syne',sans-serif; font-size:0.88rem; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;
+    background:linear-gradient(135deg, var(--neon-purple), var(--neon-cyan)); color:#000; transition:all 0.2s;
+  }
+  .dl-btn-next:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(191,0,255,0.35); }
+  .dl-btn-skip {
+    padding:13px 18px; border-radius:12px; cursor:pointer; font-family:'Syne',sans-serif;
+    font-size:0.82rem; font-weight:700; letter-spacing:0.05em; text-transform:uppercase;
+    background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.4); transition:all 0.2s;
+  }
+  .dl-btn-skip:hover { background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.7); }
+
+  /* Motivational message */
+  .dl-motivate {
+    text-align:center; font-size:0.78rem; color:rgba(255,255,255,0.35);
+    font-family:'Space Mono',monospace; letter-spacing:0.03em; min-height:20px;
+    transition:opacity 0.3s;
+  }
+  .dl-motivate.pop { animation:motivatePop 0.4s ease; color:var(--neon-cyan); }
+  @keyframes motivatePop { 0%{transform:scale(0.9);opacity:0} 60%{transform:scale(1.05)} 100%{transform:scale(1);opacity:1} }
+
+  /* Checkpoint celebration */
+  .dl-checkpoint {
+    position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+    z-index:400; pointer-events:none; text-align:center;
+    animation:checkpointAnim 1.8s ease forwards;
+    opacity:0;
+  }
+  .dl-checkpoint-inner {
+    background:rgba(10,10,30,0.95); border:2px solid var(--neon-purple);
+    border-radius:20px; padding:22px 36px; box-shadow:0 0 40px rgba(191,0,255,0.4);
+  }
+  .dl-checkpoint-emoji { font-size:2.5rem; display:block; margin-bottom:6px; }
+  .dl-checkpoint-text { font-family:'Syne',sans-serif; font-size:1.1rem; font-weight:800; color:#fff; }
+  .dl-checkpoint-sub { font-size:0.72rem; color:rgba(191,0,255,0.8); margin-top:3px; }
+  @keyframes checkpointAnim {
+    0%   { opacity:0; transform:translate(-50%,-50%) scale(0.7); }
+    15%  { opacity:1; transform:translate(-50%,-50%) scale(1.05); }
+    30%  { transform:translate(-50%,-50%) scale(1); }
+    70%  { opacity:1; transform:translate(-50%,-50%) scale(1); }
+    100% { opacity:0; transform:translate(-50%,-58%) scale(0.95); }
+  }
+
+  /* Confetti particles */
+  .dl-confetti-dot {
+    position:fixed; width:7px; height:7px; border-radius:50%;
+    pointer-events:none; z-index:399; animation:confettiFall linear forwards;
+  }
+  @keyframes confettiFall {
+    0%   { transform:translateY(0) rotate(0deg) scale(1); opacity:1; }
+    100% { transform:translateY(180px) rotate(540deg) scale(0.3); opacity:0; }
+  }
+
+  /* Exit button */
+  .dl-exit-btn {
+    position:fixed; top:16px; right:16px; z-index:310;
+    display:none; align-items:center; gap:6px; padding:7px 14px;
+    background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1);
+    border-radius:20px; color:rgba(255,255,255,0.3); font-size:0.68rem;
+    font-family:'Space Mono',monospace; cursor:pointer; transition:all 0.2s;
+  }
+  .dl-exit-btn.show { display:flex; }
+  .dl-exit-btn:hover { border-color:rgba(255,0,110,0.4); color:rgba(255,0,110,0.7); }
+
+  /* Field visibility toggles */
+  .dl-field-toggles {
+    display:flex; gap:6px; justify-content:flex-end; margin-bottom:10px;
+  }
+  .dl-field-btn {
+    padding:3px 9px; border-radius:20px; font-family:'Space Mono',monospace;
+    font-size:0.6rem; font-weight:700; letter-spacing:0.08em; cursor:pointer; transition:all 0.18s;
+    border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.4);
+  }
+  .dl-field-btn.active {
+    background:rgba(191,0,255,0.18); border-color:rgba(191,0,255,0.5); color:var(--neon-purple);
+  }
+  .dl-field-btn:hover { border-color:rgba(191,0,255,0.4); color:var(--neon-purple); }
+
+  /* Mastered button */
+  .dl-btn-mastered {
+    padding:13px 18px; border-radius:12px; cursor:pointer; font-family:'Syne',sans-serif;
+    font-size:0.82rem; font-weight:700; letter-spacing:0.05em; text-transform:uppercase;
+    background:rgba(57,255,20,0.08); border:1px solid rgba(57,255,20,0.25); color:var(--neon-green);
+    transition:all 0.2s;
+  }
+  .dl-btn-mastered:hover { background:rgba(57,255,20,0.16); transform:translateY(-1px); box-shadow:0 4px 16px rgba(57,255,20,0.2); }
+
+  /* Summary screen */
+  .dl-summary {
+    max-width:420px; width:100%; text-align:center; animation:fadeUp 0.4s ease;
+  }
+  .dl-summary-icon  { font-size:3.5rem; display:block; margin-bottom:12px; animation:bounce 0.8s ease infinite alternate; }
+  .dl-summary-title {
+    font-family:'Syne',sans-serif; font-size:1.5rem; font-weight:800; letter-spacing:0.04em;
+    background:linear-gradient(135deg,var(--neon-green),var(--neon-cyan));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    margin-bottom:20px;
+  }
+  .dl-summary-stats {
+    display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:24px;
+  }
+  .dl-stat-card {
+    background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+    border-radius:14px; padding:14px 8px; text-align:center;
+  }
+  .dl-stat-val {
+    font-family:'Syne',sans-serif; font-size:1.8rem; font-weight:800; line-height:1;
+  }
+  .dl-stat-lbl {
+    font-size:0.58rem; letter-spacing:0.15em; text-transform:uppercase;
+    color:rgba(255,255,255,0.3); margin-top:5px; font-family:'Space Mono',monospace;
+  }
 </style>
 </head>
 <body>
@@ -2785,13 +3070,9 @@ function renderFlashcard() {
     ].join('');
     el.innerHTML = `
       <div class="fc-controls" style="margin-bottom:20px">
-        <div class="autoplay-toggle">
-          <label class="toggle-switch">
-            <input type="checkbox" id="autoPlayToggle" ${autoPlay?'checked':''} onchange="autoPlay=this.checked">
-            <span class="toggle-track"></span>
-          </label>
-          <span class="toggle-label">Tự đọc</span>
-        </div>
+        <button class="dl-toggle-btn" onclick="dlOpen()">
+          <span class="dl-toggle-dot"></span>DEEP LEARNING
+        </button>
         <div class="autoplay-toggle">
           <label class="toggle-switch">
             <input type="checkbox" id="reversedToggle" ${reversedMode?'checked':''} onchange="reversedMode=this.checked;isFlipped=false;renderFlashcard()">
@@ -2833,13 +3114,9 @@ function renderFlashcard() {
     <div class="fc-controls">
       <div class="prog-info"><strong>${currentIndex+1}</strong> / ${studyQueue.length}</div>
       <div class="prog-wrap"><div class="prog-bar" style="width:${prog}%"></div></div>
-      <div class="autoplay-toggle">
-        <label class="toggle-switch">
-          <input type="checkbox" id="autoPlayToggle" ${autoPlay?'checked':''} onchange="autoPlay=this.checked">
-          <span class="toggle-track"></span>
-        </label>
-        <span class="toggle-label">Tự đọc</span>
-      </div>
+      <button class="dl-toggle-btn" id="dlToggleBtn" onclick="dlOpen()">
+        <span class="dl-toggle-dot"></span>DEEP LEARNING
+      </button>
       <div class="autoplay-toggle">
         <label class="toggle-switch">
           <input type="checkbox" id="reversedToggle" ${reversedMode?'checked':''} onchange="reversedMode=this.checked;isFlipped=false;renderFlashcard()">
@@ -5354,6 +5631,78 @@ window.addEventListener('online',  () => _showOfflineBanner(false));
 window.addEventListener('offline', () => _showOfflineBanner(true));
 if (!navigator.onLine) _showOfflineBanner(true);
 </script>
+  <!-- ===== DEEP LEARNING OVERLAY ===== -->
+  <button class="dl-exit-btn" id="dlExitBtn" onclick="dlExitOrSummary()">✕ Kết thúc</button>
+  <div class="dl-overlay" id="dlOverlay">
+
+    <!-- INTRO SCREEN -->
+    <div class="dl-intro" id="dlIntro">
+      <span class="dl-intro-icon">🧠</span>
+      <div class="dl-intro-title">DEEP LEARNING</div>
+      <div class="dl-intro-badge">Chế độ học tập tích cực</div>
+      <div class="dl-intro-msg">
+        Bạn đang bước vào <strong>chế độ tập trung sâu</strong>. Trong khoảng thời gian này, bạn sẽ luyện viết lại từng từ để ghi nhớ thật sâu.<br><br>
+        Hãy <strong>ngồi xuống</strong>, uống một ngụm nước, ăn miếng bánh nhỏ và chuẩn bị tinh thần. Không có điểm số, không có áp lực — chỉ có bạn và những từ vựng. 🍵
+      </div>
+      <div style="font-size:0.72rem;color:rgba(255,255,255,0.3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:10px;font-family:'Space Mono',monospace">Chọn thời gian học</div>
+      <div class="dl-duration-row">
+        <button class="dl-dur-btn" data-min="10" onclick="dlSetDuration(10,this)">10<span>phút</span></button>
+        <button class="dl-dur-btn active" data-min="15" onclick="dlSetDuration(15,this)">15<span>phút</span></button>
+        <button class="dl-dur-btn" data-min="20" onclick="dlSetDuration(20,this)">20<span>phút</span></button>
+      </div>
+      <button class="dl-start-btn" onclick="dlStartCountdown()">Bắt đầu →</button>
+    </div>
+
+    <!-- COUNTDOWN SCREEN -->
+    <div class="dl-countdown" id="dlCountdown" style="display:none">
+      <div class="dl-countdown-num" id="dlCountNum">3</div>
+      <div class="dl-countdown-label">Chuẩn bị...</div>
+    </div>
+
+    <!-- SESSION SCREEN -->
+    <div class="dl-session" id="dlSession" style="display:none">
+      <div class="dl-timer-bar-wrap">
+        <div class="dl-timer-track"><div class="dl-timer-fill" id="dlTimerFill" style="width:100%"></div></div>
+        <div class="dl-timer-clock" id="dlTimerClock">—</div>
+      </div>
+      <div class="dl-word-card" id="dlWordCard">
+        <div class="dl-field-toggles">
+          <button class="dl-field-btn active" id="dlToggleEN"  onclick="dlToggleField('en')"  title="Ẩn/hiện từ tiếng Anh">EN</button>
+          <button class="dl-field-btn active" id="dlToggleIPA" onclick="dlToggleField('ipa')" title="Ẩn/hiện phát âm">IPA</button>
+          <button class="dl-field-btn active" id="dlToggleVI"  onclick="dlToggleField('vi')"  title="Ẩn/hiện nghĩa tiếng Việt">VI</button>
+        </div>
+        <div class="dl-card-progress" id="dlCardProgress">1 từ</div>
+        <div class="dl-card-word"     id="dlCardWord">—</div>
+        <div class="dl-card-phonetic" id="dlCardPhonetic"></div>
+        <div class="dl-card-meaning"  id="dlCardMeaning"></div>
+      </div>
+      <div class="dl-write-area">
+        <div class="dl-write-label">Gõ lại từ trên đây</div>
+        <div class="dl-input-wrap">
+          <input class="dl-input" id="dlInput" type="text"
+            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+            placeholder="Gõ lại từ..."
+            onkeydown="if(event.key==='Enter')dlCheckInput()">
+          <span class="dl-input-hint">Enter ↵</span>
+        </div>
+      </div>
+      <div class="dl-actions">
+        <button class="dl-btn-next"     onclick="dlNext()">Tiếp theo →</button>
+        <button class="dl-btn-mastered" onclick="dlMarkMastered()">✓ Đã thuộc</button>
+      </div>
+      <div class="dl-motivate" id="dlMotivate"></div>
+    </div>
+
+    <!-- SUMMARY SCREEN -->
+    <div class="dl-summary" id="dlSummary" style="display:none">
+      <div class="dl-summary-icon">🎉</div>
+      <div class="dl-summary-title">Phiên học kết thúc!</div>
+      <div class="dl-summary-stats" id="dlSummaryStats"></div>
+      <button class="dl-start-btn" style="margin-top:8px" onclick="dlExit()">Đóng lại</button>
+    </div>
+
+  </div>
+
   <!-- ARTICLE DRAWER -->
   <div class="art-overlay" id="artOverlay" onclick="if(event.target===this)closeArtDrawer()">
     <div class="art-drawer">
@@ -5531,6 +5880,321 @@ async function processCtxFile(file) {
     }
   };
   reader.readAsArrayBuffer(file);
+}
+</script>
+
+<script>
+// ============================================================
+//  DEEP LEARNING MODE
+// ============================================================
+let dlDuration   = 15;
+let dlQueue      = [];
+let dlIndex      = 0;
+let dlWordsCount = 0;   // lượt học (kể cả lặp lại)
+let dlMastered   = 0;   // số từ mark đã thuộc trong session
+let dlTimerEnd   = 0;
+let dlTimerRAF   = null;
+
+// Trạng thái ẩn/hiện từng field
+let dlHideEN  = false;
+let dlHideIPA = false;
+let dlHideVI  = false;
+
+const DL_MOTIVATE = [
+  '🔥 Giữ đà đó!',
+  '✨ Tuyệt vời, tiếp tục!',
+  '💪 Bạn đang làm rất tốt!',
+  '🧠 Não đang ghi nhớ đây!',
+  '⚡ Thêm một từ nữa nào!',
+  '🌟 Không dừng lại nhé!',
+  '🎯 Tập trung thêm chút nữa!',
+  '🚀 Đang bay cao đây!',
+];
+
+const DL_CHECKPOINT = [
+  { n:5,  emoji:'🌱', text:'5 lượt xong rồi!',   sub:'Bạn đang khởi động tốt' },
+  { n:10, emoji:'🔥', text:'10 lượt! Tuyệt!',    sub:'Não đang ghi nhớ sâu hơn rồi' },
+  { n:15, emoji:'⚡', text:'15 lượt! Đỉnh!',     sub:'Bạn đang trong flow state' },
+  { n:20, emoji:'🏆', text:'20 lượt! Xuất sắc!', sub:'Trí nhớ cơ bắp đang hình thành' },
+  { n:30, emoji:'🌟', text:'30 lượt! Phi thường!',sub:'Bạn là một học máy rồi đây' },
+];
+
+// ── Open intro ──
+function dlOpen() {
+  if (!words.length) { showToast('error','⚠ Chưa có từ vựng.'); return; }
+  _dlShowScreen('dlIntro');
+  document.getElementById('dlOverlay').classList.add('show');
+  document.getElementById('dlExitBtn').classList.remove('show');
+}
+
+// ── Duration select ──
+function dlSetDuration(min, btn) {
+  dlDuration = min;
+  document.querySelectorAll('.dl-dur-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ── Countdown 3-2-1 ──
+function dlStartCountdown() {
+  _dlShowScreen('dlCountdown');
+  let n = 3;
+  const numEl = document.getElementById('dlCountNum');
+  numEl.textContent = n;
+  const tick = () => {
+    n--;
+    if (n > 0) {
+      numEl.style.animation = 'none'; void numEl.offsetWidth;
+      numEl.style.animation = ''; numEl.textContent = n;
+      setTimeout(tick, 900);
+    } else { dlBeginSession(); }
+  };
+  setTimeout(tick, 900);
+}
+
+// ── Begin session ──
+function dlBeginSession() {
+  dlQueue      = [...studyQueue];
+  if (!dlQueue.length) dlQueue = words.filter(w=>!w.hidden).map(w=>({...w}));
+  dlIndex      = 0;
+  dlWordsCount = 0;
+  dlMastered   = 0;
+
+  _dlShowScreen('dlSession');
+  document.getElementById('dlExitBtn').classList.add('show');
+
+  dlTimerEnd = Date.now() + dlDuration * 60 * 1000;
+  dlTickTimer();
+
+  // Reset field toggle state to active
+  dlHideEN = dlHideIPA = dlHideVI = false;
+  ['dlToggleEN','dlToggleIPA','dlToggleVI'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) b.classList.add('active');
+  });
+
+  dlRenderCard();
+  setTimeout(() => document.getElementById('dlInput')?.focus(), 200);
+}
+
+// ── Timer ──
+function dlTickTimer() {
+  const remaining = dlTimerEnd - Date.now();
+  if (remaining <= 0) { dlFinish(); return; }
+  const totalMs = dlDuration * 60 * 1000;
+  const pct     = (remaining / totalMs) * 100;
+  const mins    = Math.floor(remaining / 60000);
+  const secs    = Math.floor((remaining % 60000) / 1000);
+  const fill    = document.getElementById('dlTimerFill');
+  const clock   = document.getElementById('dlTimerClock');
+  if (fill)  fill.style.width = pct + '%';
+  if (clock) clock.textContent = `${mins}:${secs.toString().padStart(2,'0')}`;
+  dlTimerRAF = setTimeout(dlTickTimer, 500);
+}
+
+// ── Render card ──
+function dlRenderCard() {
+  if (!dlQueue.length) return;
+  if (dlIndex >= dlQueue.length) dlIndex = 0;
+  const w = dlQueue[dlIndex];
+
+  document.getElementById('dlCardProgress').textContent = `${dlWordsCount + 1} lượt`;
+
+  const wordEl = document.getElementById('dlCardWord');
+  wordEl.textContent = w.word || '';
+  wordEl.style.opacity = dlHideEN ? '0' : '1';
+  wordEl.style.filter  = dlHideEN ? 'blur(8px)' : 'none';
+  wordEl.style.userSelect = dlHideEN ? 'none' : '';
+
+  const ipaEl = document.getElementById('dlCardPhonetic');
+  ipaEl.textContent   = w.phonetics ? `/${w.phonetics}/` : '';
+  ipaEl.style.display = (!w.phonetics || dlHideIPA) ? 'none' : '';
+
+  const viEl = document.getElementById('dlCardMeaning');
+  viEl.textContent = w.meaning || '';
+  viEl.style.opacity = dlHideVI ? '0' : '1';
+  viEl.style.filter  = dlHideVI ? 'blur(8px)' : 'none';
+  viEl.style.userSelect = dlHideVI ? 'none' : '';
+
+  const inp = document.getElementById('dlInput');
+  if (inp) { inp.value = ''; inp.className = 'dl-input'; inp.focus(); }
+
+  if (dlWordsCount > 0 && dlWordsCount % 3 === 0) dlShowMotivate();
+  else document.getElementById('dlMotivate').textContent = '';
+
+  const card = document.getElementById('dlWordCard');
+  if (card) { card.style.animation = 'none'; void card.offsetWidth; card.style.animation = 'fadeUp 0.3s ease'; }
+}
+
+// ── Field toggles ──
+function dlToggleField(field) {
+  if (field === 'en') {
+    dlHideEN = !dlHideEN;
+    document.getElementById('dlToggleEN').classList.toggle('active', !dlHideEN);
+  } else if (field === 'ipa') {
+    dlHideIPA = !dlHideIPA;
+    document.getElementById('dlToggleIPA').classList.toggle('active', !dlHideIPA);
+  } else if (field === 'vi') {
+    dlHideVI = !dlHideVI;
+    document.getElementById('dlToggleVI').classList.toggle('active', !dlHideVI);
+  }
+  dlRenderCard(); // re-apply visibility
+}
+
+// ── Check input ──
+function dlCheckInput() {
+  const inp  = document.getElementById('dlInput');
+  if (!inp) return;
+  const val  = inp.value.trim().toLowerCase();
+  const word = (dlQueue[dlIndex]?.word || '').toLowerCase().trim();
+  if (!val) return;
+
+  if (val === word) {
+    inp.classList.add('correct');
+    dlConfetti(inp);
+    setTimeout(dlNext, 550);
+  } else {
+    inp.classList.add('wrong');
+    setTimeout(() => { inp.classList.remove('wrong'); inp.value = ''; inp.focus(); }, 800);
+  }
+}
+
+// ── Next ──
+function dlNext() {
+  dlWordsCount++;
+  dlIndex++;
+  if (dlIndex >= dlQueue.length) dlIndex = 0;
+  const cp = DL_CHECKPOINT.find(c => c.n === dlWordsCount);
+  if (cp) dlShowCheckpoint(cp);
+  dlRenderCard();
+}
+
+// ── Mark mastered: remove from queue, add new words ──
+function dlMarkMastered() {
+  if (!dlQueue.length) return;
+  const w = dlQueue[dlIndex];
+
+  // Mark in main words array
+  const idx = words.findIndex(x => x.word === w.word);
+  if (idx >= 0 && !words[idx].mastered) {
+    words[idx].mastered = true;
+    saveData();
+    dlMastered++;
+  }
+
+  // Remove from dlQueue
+  dlQueue.splice(dlIndex, 1);
+
+  // Try to add a new unmastered word not already in queue
+  const inQueue = new Set(dlQueue.map(x => x.word));
+  const candidates = words.filter(w2 => !w2.mastered && !w2.hidden && !inQueue.has(w2.word));
+  if (candidates.length) {
+    dlQueue.push({ ...candidates[Math.floor(Math.random() * candidates.length)] });
+  }
+
+  if (!dlQueue.length) {
+    // All words mastered!
+    dlFinish(); return;
+  }
+
+  if (dlIndex >= dlQueue.length) dlIndex = 0;
+  dlWordsCount++;
+  const cp = DL_CHECKPOINT.find(c => c.n === dlWordsCount);
+  if (cp) dlShowCheckpoint(cp);
+
+  dlConfetti(document.getElementById('dlInput'));
+  dlRenderCard();
+}
+
+// ── Motivate ──
+function dlShowMotivate() {
+  const el  = document.getElementById('dlMotivate');
+  const msg = DL_MOTIVATE[Math.floor(Math.random() * DL_MOTIVATE.length)];
+  el.textContent = msg;
+  el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+}
+
+// ── Checkpoint popup ──
+function dlShowCheckpoint(cp) {
+  const el = document.createElement('div');
+  el.className = 'dl-checkpoint';
+  el.innerHTML = `<div class="dl-checkpoint-inner">
+    <span class="dl-checkpoint-emoji">${cp.emoji}</span>
+    <div class="dl-checkpoint-text">${cp.text}</div>
+    <div class="dl-checkpoint-sub">${cp.sub}</div>
+  </div>`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2000);
+}
+
+// ── Confetti ──
+function dlConfetti(anchor) {
+  const colors = ['#bf00ff','#00f5ff','#39ff14','#ffe600','#ff006e'];
+  const rect   = anchor ? anchor.getBoundingClientRect() : { left:window.innerWidth/2, top:window.innerHeight/2, width:0 };
+  for (let i = 0; i < 14; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'dl-confetti-dot';
+    dot.style.cssText = `left:${rect.left + rect.width/2 + (Math.random()-0.5)*120}px;top:${rect.top}px;background:${colors[i%colors.length]};animation-duration:${0.6+Math.random()*0.6}s;animation-delay:${Math.random()*0.15}s;`;
+    document.body.appendChild(dot);
+    setTimeout(() => dot.remove(), 1400);
+  }
+}
+
+// ── Show summary screen ──
+function dlShowSummary() {
+  if (dlWordsCount === 0) { dlExit(); return; } // không học gì → thoát thẳng
+
+  clearTimeout(dlTimerRAF);
+  document.getElementById('dlExitBtn').classList.remove('show');
+
+  const mins = dlDuration;
+  const statsEl = document.getElementById('dlSummaryStats');
+  statsEl.innerHTML = `
+    <div class="dl-stat-card">
+      <div class="dl-stat-val" style="color:var(--neon-cyan)">${dlWordsCount}</div>
+      <div class="dl-stat-lbl">Lượt học</div>
+    </div>
+    <div class="dl-stat-card">
+      <div class="dl-stat-val" style="color:var(--neon-green)">${dlMastered}</div>
+      <div class="dl-stat-lbl">Đã thuộc</div>
+    </div>
+    <div class="dl-stat-card">
+      <div class="dl-stat-val" style="color:var(--neon-purple)">${mins}</div>
+      <div class="dl-stat-lbl">Phút học</div>
+    </div>
+  `;
+  _dlShowScreen('dlSummary');
+}
+
+// ── Finish (timer hết) ──
+function dlFinish() {
+  dlShowSummary();
+}
+
+// ── Exit button (thoát giữa chừng) ──
+function dlExit() {
+  clearTimeout(dlTimerRAF);
+  document.getElementById('dlOverlay').classList.remove('show');
+  document.getElementById('dlExitBtn').classList.remove('show');
+  _dlShowScreen('dlIntro');
+}
+
+// ── Helper: show one screen, hide the rest ──
+function _dlShowScreen(id) {
+  ['dlIntro','dlCountdown','dlSession','dlSummary'].forEach(s => {
+    const el = document.getElementById(s);
+    if (el) el.style.display = (s === id) ? '' : 'none';
+  });
+}
+
+// ── Exit button smart handler ──
+function dlExitOrSummary() {
+  const session = document.getElementById('dlSession');
+  const isInSession = session && session.style.display !== 'none';
+  if (isInSession && dlWordsCount > 0) {
+    dlShowSummary();
+  } else {
+    dlExit();
+  }
 }
 </script>
 </body>
