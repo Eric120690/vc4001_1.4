@@ -6065,16 +6065,22 @@ function dlStartCountdown() {
 
 // ── Begin session ──
 function dlBeginSession() {
-  // Lấy pool gốc (studyQueue đã shuffle theo cài đặt)
+  // Đảm bảo studyQueue đã được build (phòng trường hợp chưa vào tab flashcard)
+  if (!studyQueue.length) buildQueue();
+
+  // Lấy pool từ studyQueue (đã shuffle + filter level + filter mastered)
+  // Fallback: nếu vẫn rỗng thì lấy từ words trực tiếp
   const pool = studyQueue.length
     ? [...studyQueue]
-    : words.filter(w => !w.hidden).map(w => ({...w}));
+    : words.filter(w => !w.hidden && !w.mastered).map(w => ({...w}));
 
-  // Ăn theo loopSize: nếu đang bật vòng lặp thì chỉ lấy N từ đó
+  // Ăn theo loopSize: đồng nhất với flashcard thường
+  // loopSize > 0 → chỉ học N từ đầu pool (giống loopWindow trong flashcard)
+  // loopSize = 0 → học toàn bộ pool
   if (loopSize > 0 && pool.length > 0) {
     dlQueue = pool.slice(0, Math.min(loopSize, pool.length));
   } else {
-    dlQueue = pool;
+    dlQueue = [...pool];
   }
 
   dlIndex      = 0;
