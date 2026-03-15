@@ -6065,8 +6065,18 @@ function dlStartCountdown() {
 
 // ── Begin session ──
 function dlBeginSession() {
-  dlQueue      = [...studyQueue];
-  if (!dlQueue.length) dlQueue = words.filter(w=>!w.hidden).map(w=>({...w}));
+  // Lấy pool gốc (studyQueue đã shuffle theo cài đặt)
+  const pool = studyQueue.length
+    ? [...studyQueue]
+    : words.filter(w => !w.hidden).map(w => ({...w}));
+
+  // Ăn theo loopSize: nếu đang bật vòng lặp thì chỉ lấy N từ đó
+  if (loopSize > 0 && pool.length > 0) {
+    dlQueue = pool.slice(0, Math.min(loopSize, pool.length));
+  } else {
+    dlQueue = pool;
+  }
+
   dlIndex      = 0;
   dlWordsCount = 0;
   dlMastered   = 0;
@@ -6204,6 +6214,9 @@ function dlNext(correctWord) {
 
 // ── Tự thêm từ mới khi đúng 3 lần ──
 function _dlAutoAddWord(learnedWord) {
+  // Nếu loopSize đang bật và queue đã đủ size thì không thêm vượt quá
+  if (loopSize > 0 && dlQueue.length >= loopSize) return;
+
   const inQueue = new Set(dlQueue.map(x => x.word));
   const candidates = words.filter(w =>
     !w.mastered && !w.hidden && !inQueue.has(w.word) && w.word !== learnedWord
