@@ -6148,6 +6148,10 @@ function dlToggleField(field) {
   if (field === 'en') {
     dlHideEN = !dlHideEN;
     document.getElementById('dlToggleEN').classList.toggle('active', !dlHideEN);
+    // Nếu bật lại EN (đang nhìn từ) → reset streak của từ hiện tại
+    if (!dlHideEN && dlQueue[dlIndex]) {
+      dlCorrectMap[dlQueue[dlIndex].word] = 0;
+    }
   } else if (field === 'ipa') {
     dlHideIPA = !dlHideIPA;
     document.getElementById('dlToggleIPA').classList.toggle('active', !dlHideIPA);
@@ -6181,12 +6185,12 @@ function dlCheckInput() {
 function dlNext(correctWord) {
   dlWordsCount++;
 
-  // Theo dõi số lần đúng liên tiếp cho từng từ
-  if (correctWord) {
+  // Chỉ tính streak khi từ tiếng Anh đang bị ẩn (EN toggle off)
+  // → người học phải tự nhớ, không được nhìn từ để gõ
+  if (correctWord && dlHideEN) {
     dlCorrectMap[correctWord] = (dlCorrectMap[correctWord] || 0) + 1;
     if (dlCorrectMap[correctWord] >= 3) {
-      // Đúng đủ 3 lần → tự động thêm từ mới vào queue
-      dlCorrectMap[correctWord] = 0; // reset đếm
+      dlCorrectMap[correctWord] = 0;
       _dlAutoAddWord(correctWord);
     }
   }
