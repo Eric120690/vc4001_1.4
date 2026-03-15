@@ -6351,7 +6351,7 @@ function _dlShowSwapToast(removed, added) {
 
 // ── Hard word: toggle ──
 function dlToggleHard() {
-  if (dlInHardLoop) return; // không cho đánh dấu khi đang trong loop từ khó
+  if (dlInHardLoop) return;
   const w = dlQueue[dlIndex];
   if (!w) return;
 
@@ -6359,25 +6359,47 @@ function dlToggleHard() {
   const maxHard = loopSize > 0 ? loopSize : 5;
 
   if (already >= 0) {
-    // Bỏ đánh dấu
+    // Bỏ đánh dấu → đưa từ trở lại queue tại vị trí hiện tại
     dlHardWords.splice(already, 1);
+    // Chèn lại vào queue ngay sau vị trí hiện tại
+    dlQueue.splice(dlIndex + 1, 0, {...w});
     dlUpdateHardBtn(false);
     dlUpdateHardCount();
-    _dlToast('Đã bỏ "' + w.word + '" khỏi nhóm từ khó');
+    _dlToast('Đã bỏ "' + w.word + '" khỏi nhóm từ khó, đưa lại vào học');
   } else {
     if (dlHardWords.length >= maxHard) {
       _dlToast('Đã đủ ' + maxHard + ' từ khó trong vòng!', '#ff4444');
       return;
     }
+
+    // Ghi nhớ từ rồi RÚT NGAY khỏi queue hiện tại
     dlHardWords.push({...w});
-    dlUpdateHardBtn(true);
-    dlUpdateHardCount();
+    dlQueue.splice(dlIndex, 1);
+
+    // Bù từ mới vào queue (nếu loopSize bật và còn thiếu chỗ)
+    const shouldFill = (loopSize === 0) || (dlQueue.length < loopSize);
+    if (shouldFill) {
+      const inQueue = new Set(dlQueue.map(x => x.word));
+      const inHard  = new Set(dlHardWords.map(x => x.word));
+      const cands = words.filter(wx =>
+        !wx.mastered && !wx.hidden && !inQueue.has(wx.word) && !inHard.has(wx.word)
+      );
+      if (cands.length) {
+        const picked = cands[Math.floor(Math.random() * cands.length)];
+        dlQueue.splice(dlIndex, 0, {...picked}); // chèn vào đúng vị trí vừa xóa
+      }
+    }
+
+    // Clamp index
+    if (dlIndex >= dlQueue.length) dlIndex = 0;
 
     if (dlHardWords.length >= maxHard) {
-      // Đủ loop → báo và bắt đầu ngay
-      setTimeout(dlStartHardLoop, 600);
+      // Đủ loop từ khó → bắt đầu ngay
+      _dlToast('⚑ "' + w.word + '" — Đủ ' + maxHard + ' từ khó!');
+      setTimeout(dlStartHardLoop, 800);
     } else {
       _dlToast('⚑ "' + w.word + '" vào nhóm từ khó (' + dlHardWords.length + '/' + maxHard + ')');
+      dlRenderCard(); // render từ tiếp theo (từ vừa xóa đã không còn trong queue)
     }
   }
 }
