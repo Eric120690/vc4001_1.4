@@ -6212,32 +6212,70 @@ function dlNext(correctWord) {
   dlRenderCard();
 }
 
-// ── Tự thêm từ mới khi đúng 3 lần ──
+// ── Tự thay từ đã thuộc bằng từ mới (đúng 3 lần ở chế độ ẩn EN) ──
 function _dlAutoAddWord(learnedWord) {
-  // Nếu loopSize đang bật và queue đã đủ size thì không thêm vượt quá
-  if (loopSize > 0 && dlQueue.length >= loopSize) return;
+  // Mark mastered trong words array + sync flashcard
+  const wIdx = words.findIndex(x => x.word === learnedWord);
+  if (wIdx >= 0 && !words[wIdx].mastered) {
+    words[wIdx].mastered = true;
+    dlMastered++;
+    saveData();
+    studyQueue = studyQueue.filter(x => x.word !== learnedWord);
+    recordStudyActivity(1);
+    refreshStatsBar();
+    updateStudyBadge();
+  }
 
+  // 1. Xóa từ đã "nắm vững" khỏi dlQueue
+  const removeIdx = dlQueue.findIndex(w => w.word === learnedWord);
+  if (removeIdx !== -1) {
+    dlQueue.splice(removeIdx, 1);
+    if (dlIndex > removeIdx) dlIndex--;
+    if (dlIndex >= dlQueue.length) dlIndex = 0;
+  }
+
+  // 2. Nếu loopSize đang bật: queue sau khi xóa < loopSize → thêm từ mới vào bù
+  //    Nếu loopSize = 0 (tắt): luôn thêm từ mới vào
+  const shouldAdd = (loopSize === 0) || (dlQueue.length < loopSize);
+  if (!shouldAdd) {
+    _dlShowSwapToast(learnedWord, null);
+    return;
+  }
+
+  // 3. Tìm từ mới chưa có trong queue, chưa mastered
   const inQueue = new Set(dlQueue.map(x => x.word));
   const candidates = words.filter(w =>
     !w.mastered && !w.hidden && !inQueue.has(w.word) && w.word !== learnedWord
   );
-  if (!candidates.length) return;
-  const picked = candidates[Math.floor(Math.random() * candidates.length)];
-  dlQueue.push({ ...picked });
 
-  // Mini toast thông báo
+  if (!candidates.length) {
+    _dlShowSwapToast(learnedWord, null);
+    return;
+  }
+
+  // 4. Chèn từ mới vào đúng vị trí vừa xóa
+  const picked = candidates[Math.floor(Math.random() * candidates.length)];
+  const insertAt = Math.min(removeIdx !== -1 ? removeIdx : dlQueue.length, dlQueue.length);
+  dlQueue.splice(insertAt, 0, { ...picked });
+
+  _dlShowSwapToast(learnedWord, picked.word);
+}
+
+function _dlShowSwapToast(removed, added) {
   const el = document.createElement('div');
-  el.style.cssText = `
-    position:fixed;bottom:100px;left:50%;transform:translateX(-50%);
-    background:rgba(10,10,30,0.95);border:1px solid rgba(191,0,255,0.4);
-    border-radius:20px;padding:8px 18px;
-    font-family:'Space Mono',monospace;font-size:0.7rem;
-    color:var(--neon-purple);z-index:500;
-    animation:fadeUp 0.3s ease;white-space:nowrap;
-  `;
-  el.textContent = '✦ Đã thêm từ mới: ' + picked.word;
+  el.style.cssText = [
+    'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);',
+    'background:rgba(10,10,30,0.95);border:1px solid rgba(191,0,255,0.4);',
+    'border-radius:20px;padding:8px 18px;',
+    'font-family:"Space Mono",monospace;font-size:0.7rem;',
+    'color:var(--neon-purple);z-index:500;',
+    'animation:fadeUp 0.3s ease;white-space:nowrap;text-align:center;line-height:1.6;',
+  ].join('');
+  el.textContent = added
+    ? '✦ ' + removed + ' → thay bằng: ' + added
+    : '✦ ' + removed + ' đã nắm vững! Không còn từ mới.';
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), 2200);
+  setTimeout(() => el.remove(), 2500);
 }
 
 // ── Mark mastered: remove from queue, add new words ──
@@ -6245,22 +6283,30 @@ function dlMarkMastered() {
   if (!dlQueue.length) return;
   const w = dlQueue[dlIndex];
 
-  // Mark in main words array
+  // Mark in main words array + sync về flashcard
   const idx = words.findIndex(x => x.word === w.word);
   if (idx >= 0 && !words[idx].mastered) {
     words[idx].mastered = true;
-    saveData();
     dlMastered++;
+    saveData();
+    // Cập nhật flashcard queue: từ này sẽ không hiện lại nữa
+    studyQueue = studyQueue.filter(x => x.word !== w.word);
+    recordStudyActivity(1);
+    refreshStatsBar();
+    updateStudyBadge();
   }
 
   // Remove from dlQueue
   dlQueue.splice(dlIndex, 1);
 
-  // Try to add a new unmastered word not already in queue
-  const inQueue = new Set(dlQueue.map(x => x.word));
-  const candidates = words.filter(w2 => !w2.mastered && !w2.hidden && !inQueue.has(w2.word));
-  if (candidates.length) {
-    dlQueue.push({ ...candidates[Math.floor(Math.random() * candidates.length)] });
+  // Thêm từ mới vào bù — chỉ thêm nếu loopSize=0 hoặc queue còn thiếu chỗ
+  const shouldAddNew = (loopSize === 0) || (dlQueue.length < loopSize);
+  if (shouldAddNew) {
+    const inQueue = new Set(dlQueue.map(x => x.word));
+    const candidates = words.filter(w2 => !w2.mastered && !w2.hidden && !inQueue.has(w2.word));
+    if (candidates.length) {
+      dlQueue.push({ ...candidates[Math.floor(Math.random() * candidates.length)] });
+    }
   }
 
   if (!dlQueue.length) {
