@@ -4175,6 +4175,8 @@ function activeTimeRecordInteraction() {
 
 async function _activeTimeFlush(mins) {
   if (!isLoggedIn() || mins < 1) return;
+  // Cập nhật in-memory ngay để tổng kết hiển thị đúng
+  _xpSession.todayActiveMin += mins;
   try {
     const today = new Date().toISOString().slice(0,10);
     const ref = window._doc(window._db, 'users', getUID(), 'xp', 'data');
@@ -5211,8 +5213,20 @@ async function xpLoad() {
     const snap = await window._getDoc(ref);
     if (snap.exists()) {
       const d = snap.data();
-      _xpSession.total = d.total || 0;
+      const today = new Date().toISOString().slice(0,10);
+      const dayKey = 'day_' + today;
+      const todayData = d[dayKey] || {};
+
+      _xpSession.total          = d.total || 0;
       _xpSession.loginStreakDays = d.loginStreakDays || 0;
+
+      // Load lại số liệu hôm nay
+      _xpSession.todayXP        = typeof todayData === 'object' ? (todayData.xp       || 0) : (todayData || 0);
+      _xpSession.todayMastered  = typeof todayData === 'object' ? (todayData.mastered  || 0) : 0;
+      _xpSession.todayArticles  = typeof todayData === 'object' ? (todayData.articles  || 0) : 0;
+      // Active minutes: đọc từ activeMinutesByDay (lưu riêng bởi _activeTimeFlush)
+      const byDay = d.activeMinutesByDay || {};
+      _xpSession.todayActiveMin = byDay[today] || 0;
     }
     _xpSession.loaded = true;
   } catch(e) { console.warn('[XP] load error', e); }
@@ -5233,7 +5247,12 @@ async function _xpSave() {
       total: _xpSession.total,
       loginStreakDays: _xpSession.loginStreakDays,
       lastUpdated: Date.now(),
-      ['day_' + today]: (_xpSession.todayXP),
+      // Lưu tất cả chỉ số hôm nay vào object theo ngày
+      ['day_' + today]: {
+        xp:       _xpSession.todayXP,
+        mastered: _xpSession.todayMastered,
+        articles: _xpSession.todayArticles,
+      },
     }, { merge: true });
   } catch(e) { console.warn('[XP] save error', e); }
 }
@@ -5404,7 +5423,7 @@ function xpRecordOpenPack(packId) {
 function xpOnMastered(btnEl) {
   _xpSession.todayMastered++;
   _totalMasteredSession++;
-  xpAdd(XP_VALUES.MASTERED, 'mastered');
+  xpAdd(XP_VALUES.MASTERED, 'mastered'); // xpAdd đã gọi _xpScheduleSave
   _xpFloatBadge(XP_VALUES.MASTERED, btnEl);
   xpRecordInteraction();
   activeTimeRecordInteraction(); // ✦ active time
@@ -5417,7 +5436,7 @@ function xpOnMastered(btnEl) {
 
 function xpOnArticleOpen() {
   _xpSession.todayArticles++;
-  xpAdd(XP_VALUES.ARTICLE_OPEN, 'article_open');
+  xpAdd(XP_VALUES.ARTICLE_OPEN, 'article_open'); // xpAdd đã gọi _xpScheduleSave
   xpRecordInteraction();
   activeTimeRecordInteraction(); // ✦ active time
 }
@@ -5429,6 +5448,13 @@ function xpOnFlashcardAction() {
 
 // ── Tổng kết hôm nay ──
 function showDailySummary() {
+  // Flush active time tích lũy chưa được đẩy lên
+  if (_activeLastInteraction > 0 && _activeAccumSec >= 60) {
+    const mins = Math.floor(_activeAccumSec / 60);
+    _activeAccumSec -= mins * 60;
+    _xpSession.todayActiveMin += mins; // cập nhật in-memory ngay
+    _activeTimeFlush(mins);
+  }
   const s = _xpSession;
   const streak = s.loginStreakDays;
   const total  = s.total;
@@ -6151,6 +6177,7 @@ function dlBeginSession() {
   _dlShowScreen('dlSession');
   document.getElementById('dlExitBtn').classList.add('show');
 
+  statsStartSession(); // bắt đầu đếm active time
   dlTimerEnd = Date.now() + dlDuration * 60 * 1000;
   dlTickTimer();
 
@@ -6256,9 +6283,10 @@ function dlCheckInput() {
   if (val === word) {
     inp.classList.add('correct');
     dlConfetti(inp);
+    xpOnFlashcardAction(); // active time
     setTimeout(() => dlNext(word), 550);
   } else {
-    dlCorrectMap[word] = 0; // reset streak nếu sai
+    dlCorrectMap[word] = 0;
     inp.classList.add('wrong');
     setTimeout(() => { inp.classList.remove('wrong'); inp.value = ''; inp.focus(); }, 800);
   }
@@ -6298,6 +6326,9 @@ function _dlAutoAddWord(learnedWord) {
     recordStudyActivity(1);
     refreshStatsBar();
     updateStudyBadge();
+    challengeRecordStudyDay();
+    xpOnMastered(null);
+    activeTimeRecordInteraction();
   }
 
   // 1. Xóa từ đã "nắm vững" khỏi dlQueue
@@ -6558,11 +6589,14 @@ function dlMarkMastered() {
     words[idx].mastered = true;
     dlMastered++;
     saveData();
-    // Cập nhật flashcard queue: từ này sẽ không hiện lại nữa
     studyQueue = studyQueue.filter(x => x.word !== w.word);
     recordStudyActivity(1);
     refreshStatsBar();
     updateStudyBadge();
+    challengeRecordStudyDay();
+    // XP + active time — giống flashcard thường
+    xpOnMastered(document.getElementById('dlBtnMastered'));
+    activeTimeRecordInteraction();
   }
   // Nếu đang trong hard loop → xóa khỏi dlHardWords để dots cập nhật đúng
   if (dlInHardLoop) {
@@ -6671,6 +6705,8 @@ function dlFinish() {
 // ── Exit button (thoát giữa chừng) ──
 function dlExit() {
   clearTimeout(dlTimerRAF);
+  statsStopSession(); // dừng đếm active time
+  activeTimeFlushOnExit();
   document.getElementById('dlOverlay').classList.remove('show');
   document.getElementById('dlExitBtn').classList.remove('show');
   _dlShowScreen('dlIntro');
@@ -6750,13 +6786,14 @@ function dlVkbCheck() {
   if (val === word) {
     disp.classList.add('correct');
     dlConfetti(disp);
+    xpOnFlashcardAction(); // active time
     setTimeout(() => {
       disp.classList.remove('correct');
       dlVkbValue = ''; dlVkbRender();
       dlNext(word);
     }, 550);
   } else {
-    dlCorrectMap[word] = 0; // reset streak nếu sai
+    dlCorrectMap[word] = 0;
     disp.classList.add('wrong');
     setTimeout(() => {
       disp.classList.remove('wrong');
