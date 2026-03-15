@@ -1657,6 +1657,102 @@ const IDB = (() => {
   .dl-exit-btn.show { display:flex; }
   .dl-exit-btn:hover { border-color:rgba(255,0,110,0.4); color:rgba(255,0,110,0.7); }
 
+  /* Virtual keyboard (mobile only) */
+  .dl-vkb {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 10px;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  @media (max-width: 768px) {
+    .dl-vkb { display: flex; }
+  }
+  .dl-vkb-row {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+  }
+  .dl-vkb-key {
+    height: 40px;
+    min-width: 28px;
+    padding: 0 4px;
+    flex: 1;
+    max-width: 36px;
+    border-radius: 7px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.07);
+    color: rgba(255,255,255,0.9);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.1s, transform 0.08s;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .dl-vkb-key:active {
+    background: rgba(191,0,255,0.35);
+    border-color: rgba(191,0,255,0.7);
+    transform: scale(0.92);
+  }
+  .dl-vkb-key.wide {
+    max-width: 58px;
+    font-size: 0.68rem;
+    color: rgba(255,255,255,0.55);
+  }
+  .dl-vkb-key.enter-key {
+    max-width: 72px;
+    background: rgba(191,0,255,0.18);
+    border-color: rgba(191,0,255,0.4);
+    color: var(--neon-purple);
+    font-size: 0.68rem;
+    letter-spacing: 0.05em;
+  }
+  .dl-vkb-key.enter-key:active {
+    background: rgba(191,0,255,0.45);
+  }
+  .dl-vkb-display {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(191,0,255,0.25);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-family: 'Space Mono', monospace;
+    font-size: 1.1rem;
+    color: #fff;
+    letter-spacing: 0.08em;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-bottom: 6px;
+    position: relative;
+  }
+  .dl-vkb-display-text { flex: 1; }
+  .dl-vkb-display-cursor {
+    width: 2px; height: 1.2em;
+    background: var(--neon-purple);
+    animation: dlBlink 0.9s step-end infinite;
+    flex-shrink: 0;
+  }
+  @keyframes dlBlink { 0%,100%{opacity:1} 50%{opacity:0} }
+  .dl-vkb-display.correct { border-color: var(--neon-green); animation: correctFlash 0.4s ease; }
+  .dl-vkb-display.wrong   { border-color: var(--neon-pink);  animation: shake 0.35s ease; }
+
+  /* Input row with check button */
+  .dl-input-row {
+    display:flex; gap:8px; align-items:stretch;
+  }
+  .dl-input-row .dl-input-wrap { flex:1; }
+  .dl-check-btn {
+    width:48px; flex-shrink:0; border-radius:12px; border:none; cursor:pointer;
+    font-size:1.2rem; font-weight:700; transition:all 0.18s;
+    background:rgba(191,0,255,0.12); border:1px solid rgba(191,0,255,0.3); color:rgba(191,0,255,0.7);
+  }
+  .dl-check-btn:hover  { background:rgba(191,0,255,0.22); color:var(--neon-purple); box-shadow:0 0 12px rgba(191,0,255,0.3); }
+  .dl-check-btn.active { background:rgba(191,0,255,0.28); border-color:var(--neon-purple); color:var(--neon-purple); }
+
   /* Field visibility toggles */
   .dl-field-toggles {
     display:flex; gap:6px; justify-content:flex-end; margin-bottom:10px;
@@ -5678,12 +5774,27 @@ if (!navigator.onLine) _showOfflineBanner(true);
       </div>
       <div class="dl-write-area">
         <div class="dl-write-label">Gõ lại từ trên đây</div>
-        <div class="dl-input-wrap">
-          <input class="dl-input" id="dlInput" type="text"
-            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-            placeholder="Gõ lại từ..."
-            onkeydown="if(event.key==='Enter')dlCheckInput()">
-          <span class="dl-input-hint">Enter ↵</span>
+        <!-- Desktop input -->
+        <div class="dl-input-row" id="dlDesktopInput">
+          <div class="dl-input-wrap">
+            <input class="dl-input" id="dlInput" type="text"
+              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+              inputmode="search" enterkeyhint="go"
+              placeholder="Gõ lại từ..."
+              onkeydown="if(event.key==='Enter')dlCheckInput()"
+              onsearch="dlCheckInput()">
+          </div>
+          <button class="dl-check-btn" id="dlCheckBtn" onclick="dlCheckInput()">✓</button>
+        </div>
+        <!-- Virtual keyboard (mobile) -->
+        <div class="dl-vkb" id="dlVkb">
+          <div class="dl-vkb-display" id="dlVkbDisplay">
+            <span class="dl-vkb-display-text" id="dlVkbText"></span>
+            <span class="dl-vkb-display-cursor"></span>
+          </div>
+          <div class="dl-vkb-row" id="dlVkbRow1"></div>
+          <div class="dl-vkb-row" id="dlVkbRow2"></div>
+          <div class="dl-vkb-row" id="dlVkbRow3"></div>
         </div>
       </div>
       <div class="dl-actions">
@@ -5887,13 +5998,14 @@ async function processCtxFile(file) {
 // ============================================================
 //  DEEP LEARNING MODE
 // ============================================================
-let dlDuration   = 15;
-let dlQueue      = [];
-let dlIndex      = 0;
-let dlWordsCount = 0;   // lượt học (kể cả lặp lại)
-let dlMastered   = 0;   // số từ mark đã thuộc trong session
-let dlTimerEnd   = 0;
-let dlTimerRAF   = null;
+let dlDuration    = 15;
+let dlQueue       = [];
+let dlIndex       = 0;
+let dlWordsCount  = 0;   // lượt học (kể cả lặp lại)
+let dlMastered    = 0;   // số từ mark đã thuộc trong session
+let dlTimerEnd    = 0;
+let dlTimerRAF    = null;
+let dlCorrectMap  = {};  // word -> số lần gõ đúng liên tiếp
 
 // Trạng thái ẩn/hiện từng field
 let dlHideEN  = false;
@@ -5958,6 +6070,7 @@ function dlBeginSession() {
   dlIndex      = 0;
   dlWordsCount = 0;
   dlMastered   = 0;
+  dlCorrectMap = {};
 
   _dlShowScreen('dlSession');
   document.getElementById('dlExitBtn').classList.add('show');
@@ -5973,7 +6086,11 @@ function dlBeginSession() {
   });
 
   dlRenderCard();
-  setTimeout(() => document.getElementById('dlInput')?.focus(), 200);
+  // Init virtual keyboard or native input depending on screen size
+  dlVkbInit();
+  if (window.innerWidth > 768) {
+    setTimeout(() => document.getElementById('dlInput')?.focus(), 200);
+  }
 }
 
 // ── Timer ──
@@ -6016,7 +6133,8 @@ function dlRenderCard() {
   viEl.style.userSelect = dlHideVI ? 'none' : '';
 
   const inp = document.getElementById('dlInput');
-  if (inp) { inp.value = ''; inp.className = 'dl-input'; inp.focus(); }
+  if (inp) { inp.value = ''; inp.className = 'dl-input'; if (window.innerWidth > 768) inp.focus(); }
+  dlVkbReset();
 
   if (dlWordsCount > 0 && dlWordsCount % 3 === 0) dlShowMotivate();
   else document.getElementById('dlMotivate').textContent = '';
@@ -6051,21 +6169,58 @@ function dlCheckInput() {
   if (val === word) {
     inp.classList.add('correct');
     dlConfetti(inp);
-    setTimeout(dlNext, 550);
+    setTimeout(() => dlNext(word), 550);
   } else {
+    dlCorrectMap[word] = 0; // reset streak nếu sai
     inp.classList.add('wrong');
     setTimeout(() => { inp.classList.remove('wrong'); inp.value = ''; inp.focus(); }, 800);
   }
 }
 
-// ── Next ──
-function dlNext() {
+// ── Next ── (gọi sau khi gõ đúng — truyền word vừa đúng)
+function dlNext(correctWord) {
   dlWordsCount++;
+
+  // Theo dõi số lần đúng liên tiếp cho từng từ
+  if (correctWord) {
+    dlCorrectMap[correctWord] = (dlCorrectMap[correctWord] || 0) + 1;
+    if (dlCorrectMap[correctWord] >= 3) {
+      // Đúng đủ 3 lần → tự động thêm từ mới vào queue
+      dlCorrectMap[correctWord] = 0; // reset đếm
+      _dlAutoAddWord(correctWord);
+    }
+  }
+
   dlIndex++;
   if (dlIndex >= dlQueue.length) dlIndex = 0;
   const cp = DL_CHECKPOINT.find(c => c.n === dlWordsCount);
   if (cp) dlShowCheckpoint(cp);
   dlRenderCard();
+}
+
+// ── Tự thêm từ mới khi đúng 3 lần ──
+function _dlAutoAddWord(learnedWord) {
+  const inQueue = new Set(dlQueue.map(x => x.word));
+  const candidates = words.filter(w =>
+    !w.mastered && !w.hidden && !inQueue.has(w.word) && w.word !== learnedWord
+  );
+  if (!candidates.length) return;
+  const picked = candidates[Math.floor(Math.random() * candidates.length)];
+  dlQueue.push({ ...picked });
+
+  // Mini toast thông báo
+  const el = document.createElement('div');
+  el.style.cssText = `
+    position:fixed;bottom:100px;left:50%;transform:translateX(-50%);
+    background:rgba(10,10,30,0.95);border:1px solid rgba(191,0,255,0.4);
+    border-radius:20px;padding:8px 18px;
+    font-family:'Space Mono',monospace;font-size:0.7rem;
+    color:var(--neon-purple);z-index:500;
+    animation:fadeUp 0.3s ease;white-space:nowrap;
+  `;
+  el.textContent = \`✦ Đã thêm từ mới: \${picked.word}\`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2200);
 }
 
 // ── Mark mastered: remove from queue, add new words ──
@@ -6184,6 +6339,94 @@ function _dlShowScreen(id) {
     const el = document.getElementById(s);
     if (el) el.style.display = (s === id) ? '' : 'none';
   });
+}
+
+// ── Virtual Keyboard ──
+const DL_VKB_ROWS = [
+  ['q','w','e','r','t','y','u','i','o','p'],
+  ['a','s','d','f','g','h','j','k','l'],
+  ['⌫', 'z','x','c','v','b','n','m', 'ENTER'],
+];
+let dlVkbValue = '';
+
+function dlVkbInit() {
+  const isMobile = window.innerWidth <= 768;
+  document.getElementById('dlDesktopInput').style.display = isMobile ? 'none' : '';
+  const vkb = document.getElementById('dlVkb');
+  if (!vkb) return;
+
+  if (!isMobile) { vkb.style.display = 'none'; return; }
+  vkb.style.display = 'flex';
+
+  // Build rows
+  DL_VKB_ROWS.forEach((row, ri) => {
+    const rowEl = document.getElementById('dlVkbRow' + (ri+1));
+    if (!rowEl) return;
+    rowEl.innerHTML = '';
+    row.forEach(key => {
+      const btn = document.createElement('button');
+      btn.className = 'dl-vkb-key';
+      if (key === '⌫')    { btn.classList.add('wide'); btn.textContent = '⌫'; }
+      else if (key === 'ENTER') { btn.classList.add('enter-key'); btn.textContent = 'ENTER'; }
+      else                { btn.textContent = key; }
+      btn.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        dlVkbPress(key);
+      });
+      rowEl.appendChild(btn);
+    });
+  });
+
+  dlVkbValue = '';
+  dlVkbRender();
+}
+
+function dlVkbPress(key) {
+  if (key === '⌫') {
+    dlVkbValue = dlVkbValue.slice(0, -1);
+  } else if (key === 'ENTER') {
+    dlVkbCheck();
+    return;
+  } else {
+    dlVkbValue += key;
+  }
+  dlVkbRender();
+}
+
+function dlVkbRender() {
+  const el = document.getElementById('dlVkbText');
+  if (el) el.textContent = dlVkbValue;
+}
+
+function dlVkbCheck() {
+  const val  = dlVkbValue.trim().toLowerCase();
+  const word = (dlQueue[dlIndex]?.word || '').toLowerCase().trim();
+  const disp = document.getElementById('dlVkbDisplay');
+  if (!val) return;
+
+  if (val === word) {
+    disp.classList.add('correct');
+    dlConfetti(disp);
+    setTimeout(() => {
+      disp.classList.remove('correct');
+      dlVkbValue = ''; dlVkbRender();
+      dlNext(word);
+    }, 550);
+  } else {
+    dlCorrectMap[word] = 0; // reset streak nếu sai
+    disp.classList.add('wrong');
+    setTimeout(() => {
+      disp.classList.remove('wrong');
+      dlVkbValue = ''; dlVkbRender();
+    }, 700);
+  }
+}
+
+function dlVkbReset() {
+  dlVkbValue = '';
+  dlVkbRender();
+  const disp = document.getElementById('dlVkbDisplay');
+  if (disp) disp.className = 'dl-vkb-display';
 }
 
 // ── Exit button smart handler ──
