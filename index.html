@@ -1753,6 +1753,46 @@ const IDB = (() => {
   .dl-check-btn:hover  { background:rgba(191,0,255,0.22); color:var(--neon-purple); box-shadow:0 0 12px rgba(191,0,255,0.3); }
   .dl-check-btn.active { background:rgba(191,0,255,0.28); border-color:var(--neon-purple); color:var(--neon-purple); }
 
+  /* Hard word button */
+  .dl-hard-btn {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:3px 10px; border-radius:20px; cursor:pointer; transition:all 0.18s;
+    border:1px solid rgba(255,140,0,0.25); background:rgba(255,140,0,0.07);
+    color:rgba(255,140,0,0.6); font-family:'Space Mono',monospace;
+    font-size:0.6rem; font-weight:700; letter-spacing:0.06em;
+    user-select:none; margin-bottom:8px;
+  }
+  .dl-hard-btn:hover { border-color:rgba(255,140,0,0.5); color:rgba(255,140,0,0.9); background:rgba(255,140,0,0.12); }
+  .dl-hard-btn.marked {
+    border-color:rgba(255,140,0,0.8); background:rgba(255,140,0,0.2);
+    color:#ff8c00; box-shadow:0 0 8px rgba(255,140,0,0.25);
+  }
+  .dl-hard-count {
+    display:none; align-items:center; gap:6px;
+    font-family:'Space Mono',monospace; font-size:0.65rem;
+    color:rgba(255,140,0,0.7); margin-bottom:4px;
+    justify-content:center;
+  }
+  .dl-hard-count.visible { display:flex; }
+  .dl-hard-count-bar {
+    display:flex; gap:3px;
+  }
+  .dl-hard-count-dot {
+    width:8px; height:8px; border-radius:50%;
+    border:1px solid rgba(255,140,0,0.4); background:transparent; transition:background 0.2s;
+  }
+  .dl-hard-count-dot.filled { background:#ff8c00; border-color:#ff8c00; }
+
+  /* Hard loop banner */
+  .dl-hard-banner {
+    display:none; align-items:center; justify-content:center; gap:8px;
+    padding:8px 16px; margin-bottom:10px;
+    background:rgba(255,140,0,0.1); border:1px solid rgba(255,140,0,0.35);
+    border-radius:12px; font-family:'Space Mono',monospace; font-size:0.7rem;
+    color:#ff8c00; letter-spacing:0.04em;
+  }
+  .dl-hard-banner.visible { display:flex; }
+
   /* Field visibility toggles */
   .dl-field-toggles {
     display:flex; gap:6px; justify-content:flex-end; margin-bottom:10px;
@@ -5767,10 +5807,18 @@ if (!navigator.onLine) _showOfflineBanner(true);
           <button class="dl-field-btn active" id="dlToggleIPA" onclick="dlToggleField('ipa')" title="Ẩn/hiện phát âm">IPA</button>
           <button class="dl-field-btn active" id="dlToggleVI"  onclick="dlToggleField('vi')"  title="Ẩn/hiện nghĩa tiếng Việt">VI</button>
         </div>
+        <div class="dl-hard-count" id="dlHardCount">
+          <span id="dlHardCountText">0 / 5 từ khó</span>
+          <div class="dl-hard-count-bar" id="dlHardCountBar"></div>
+        </div>
+        <div class="dl-hard-banner" id="dlHardBanner">
+          <span>🔥</span><span id="dlHardBannerText">Đang học loop từ khó</span>
+        </div>
         <div class="dl-card-progress" id="dlCardProgress">1 từ</div>
         <div class="dl-card-word"     id="dlCardWord">—</div>
         <div class="dl-card-phonetic" id="dlCardPhonetic"></div>
         <div class="dl-card-meaning"  id="dlCardMeaning"></div>
+        <button class="dl-hard-btn" id="dlHardBtn" onclick="dlToggleHard()">⚑ Từ khó</button>
       </div>
       <div class="dl-write-area">
         <div class="dl-write-label">Gõ lại từ trên đây</div>
@@ -6006,6 +6054,9 @@ let dlMastered    = 0;   // số từ mark đã thuộc trong session
 let dlTimerEnd    = 0;
 let dlTimerRAF    = null;
 let dlCorrectMap  = {};  // word -> số lần gõ đúng liên tiếp
+let dlHardWords   = [];  // danh sách từ khó hiện tại
+let dlInHardLoop  = false; // đang trong loop từ khó hay không
+let dlHardLoopQueue = []; // queue riêng khi đang học loop từ khó
 
 // Trạng thái ẩn/hiện từng field
 let dlHideEN  = false;
@@ -6087,6 +6138,8 @@ function dlBeginSession() {
   dlWordsCount = 0;
   dlMastered   = 0;
   dlCorrectMap = {};
+  dlHardWords  = [];
+  dlInHardLoop = false;
 
   _dlShowScreen('dlSession');
   document.getElementById('dlExitBtn').classList.add('show');
@@ -6152,6 +6205,13 @@ function dlRenderCard() {
   if (inp) { inp.value = ''; inp.className = 'dl-input'; if (window.innerWidth > 768) inp.focus(); }
   dlVkbReset();
 
+  // Sync hard word button
+  const isHard = dlHardWords.some(x => x.word === w.word);
+  dlUpdateHardBtn(isHard);
+  const hardBtn = document.getElementById('dlHardBtn');
+  if (hardBtn) hardBtn.style.display = dlInHardLoop ? 'none' : '';
+  dlUpdateHardCount();
+
   if (dlWordsCount > 0 && dlWordsCount % 3 === 0) dlShowMotivate();
   else document.getElementById('dlMotivate').textContent = '';
 
@@ -6212,6 +6272,11 @@ function dlNext(correctWord) {
   }
 
   dlIndex++;
+  // Nếu đang trong hard loop và đã qua hết → kết thúc hard loop
+  if (dlInHardLoop && dlIndex >= dlQueue.length) {
+    dlEndHardLoop();
+    return;
+  }
   if (dlIndex >= dlQueue.length) dlIndex = 0;
   const cp = DL_CHECKPOINT.find(c => c.n === dlWordsCount);
   if (cp) dlShowCheckpoint(cp);
@@ -6282,6 +6347,141 @@ function _dlShowSwapToast(removed, added) {
     : '✦ ' + removed + ' đã nắm vững! Không còn từ mới.';
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 2500);
+}
+
+// ── Hard word: toggle ──
+function dlToggleHard() {
+  if (dlInHardLoop) return; // không cho đánh dấu khi đang trong loop từ khó
+  const w = dlQueue[dlIndex];
+  if (!w) return;
+
+  const already = dlHardWords.findIndex(x => x.word === w.word);
+  const maxHard = loopSize > 0 ? loopSize : 5;
+
+  if (already >= 0) {
+    // Bỏ đánh dấu
+    dlHardWords.splice(already, 1);
+    dlUpdateHardBtn(false);
+    dlUpdateHardCount();
+    _dlToast('Đã bỏ "' + w.word + '" khỏi nhóm từ khó');
+  } else {
+    if (dlHardWords.length >= maxHard) {
+      _dlToast('Đã đủ ' + maxHard + ' từ khó trong vòng!', '#ff4444');
+      return;
+    }
+    dlHardWords.push({...w});
+    dlUpdateHardBtn(true);
+    dlUpdateHardCount();
+
+    if (dlHardWords.length >= maxHard) {
+      // Đủ loop → báo và bắt đầu ngay
+      setTimeout(dlStartHardLoop, 600);
+    } else {
+      _dlToast('⚑ "' + w.word + '" vào nhóm từ khó (' + dlHardWords.length + '/' + maxHard + ')');
+    }
+  }
+}
+
+// ── Bắt đầu học loop từ khó ──
+function dlStartHardLoop() {
+  dlInHardLoop = true;
+  const maxHard = loopSize > 0 ? loopSize : 5;
+
+  // Lưu queue hiện tại, tạo queue mới chỉ gồm từ khó
+  dlHardLoopQueue = [...dlQueue];
+  dlQueue = dlHardWords.map(w => ({...w}));
+  dlIndex = 0;
+
+  // Hiện banner
+  const banner = document.getElementById('dlHardBanner');
+  const bannerText = document.getElementById('dlHardBannerText');
+  if (banner) { banner.classList.add('visible'); }
+  if (bannerText) bannerText.textContent = 'Loop từ khó — ' + dlQueue.length + ' từ';
+
+  // Ẩn hard count dots khi đang trong loop
+  const countEl = document.getElementById('dlHardCount');
+  if (countEl) countEl.classList.remove('visible');
+
+  dlRenderCard();
+  _dlCheckpointPopup('🔥', 'Loop từ khó bắt đầu!', 'Tập trung vào ' + dlQueue.length + ' từ này');
+}
+
+// ── Kết thúc hard loop → quay về queue thường ──
+function dlEndHardLoop() {
+  dlInHardLoop = false;
+  dlHardWords  = []; // clear sau khi học xong
+
+  // Khôi phục queue cũ, bỏ các từ khó đã học xong
+  const hardSet = new Set(dlQueue.map(x => x.word));
+  dlQueue = dlHardLoopQueue.filter(w => !hardSet.has(w.word));
+
+  // Nếu queue cũ rỗng, lấy lại từ studyQueue
+  if (!dlQueue.length) {
+    buildQueue();
+    dlQueue = studyQueue.length
+      ? (loopSize > 0 ? [...studyQueue].slice(0, loopSize) : [...studyQueue])
+      : words.filter(w => !w.hidden && !w.mastered).map(w => ({...w}));
+  }
+
+  dlIndex = 0;
+
+  // Ẩn banner
+  const banner = document.getElementById('dlHardBanner');
+  if (banner) banner.classList.remove('visible');
+
+  // Cập nhật lại dots (giờ = 0)
+  dlUpdateHardCount();
+
+  dlRenderCard();
+  _dlCheckpointPopup('✅', 'Loop từ khó xong!', 'Tiếp tục học bình thường');
+}
+
+// ── Update nút hard trên thẻ ──
+function dlUpdateHardBtn(isMarked) {
+  const btn = document.getElementById('dlHardBtn');
+  if (!btn) return;
+  btn.classList.toggle('marked', isMarked);
+  btn.textContent = isMarked ? '⚑ Từ khó (đã đánh dấu)' : '⚑ Từ khó';
+}
+
+// ── Update dots counter ──
+function dlUpdateHardCount() {
+  const maxHard = loopSize > 0 ? loopSize : 5;
+  const countEl  = document.getElementById('dlHardCount');
+  const countTxt = document.getElementById('dlHardCountText');
+  const bar      = document.getElementById('dlHardCountBar');
+  if (!countEl || !bar) return;
+
+  countEl.classList.toggle('visible', dlHardWords.length > 0 && !dlInHardLoop);
+  if (countTxt) countTxt.textContent = dlHardWords.length + ' / ' + maxHard + ' từ khó';
+
+  bar.innerHTML = '';
+  for (let i = 0; i < maxHard; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'dl-hard-count-dot' + (i < dlHardWords.length ? ' filled' : '');
+    bar.appendChild(dot);
+  }
+}
+
+// ── Mini toast helper ──
+function _dlToast(msg, color) {
+  const el = document.createElement('div');
+  el.style.cssText = [
+    'position:fixed;bottom:110px;left:50%;transform:translateX(-50%);',
+    'background:rgba(10,10,30,0.95);border:1px solid rgba(255,140,0,0.4);',
+    'border-radius:20px;padding:8px 18px;',
+    'font-family:"Space Mono",monospace;font-size:0.7rem;',
+    'color:' + (color || '#ff8c00') + ';z-index:500;',
+    'animation:fadeUp 0.3s ease;white-space:nowrap;text-align:center;',
+  ].join('');
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2200);
+}
+
+// ── Checkpoint popup helper (reuse existing) ──
+function _dlCheckpointPopup(emoji, text, sub) {
+  dlShowCheckpoint({ emoji, text, sub });
 }
 
 // ── Mark mastered: remove from queue, add new words ──
