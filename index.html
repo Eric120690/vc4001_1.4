@@ -6218,7 +6218,7 @@ function _dlAutoAddWord(learnedWord) {
     color:var(--neon-purple);z-index:500;
     animation:fadeUp 0.3s ease;white-space:nowrap;
   `;
-  el.textContent = \`✦ Đã thêm từ mới: \${picked.word}\`;
+  el.textContent = '✦ Đã thêm từ mới: ' + picked.word;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 2200);
 }
