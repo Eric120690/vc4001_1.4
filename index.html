@@ -1200,6 +1200,83 @@ const IDB = (() => {
   .profile-streak-label { font-size:0.7rem; color:rgba(255,255,255,0.35); }
   .profile-section-title { font-size:0.62rem; color:rgba(255,255,255,0.3); letter-spacing:0.2em; text-transform:uppercase; margin-bottom:8px; }
 
+  /* ── REVIEW MODE TOGGLE ── */
+  .review-mode-card {
+    background: rgba(255,0,110,0.04);
+    border: 1px solid rgba(255,0,110,0.18);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+  .review-mode-card.active {
+    border-color: rgba(255,0,110,0.45);
+    box-shadow: 0 0 14px rgba(255,0,110,0.1);
+  }
+  .review-mode-info { flex: 1; min-width: 0; }
+  .review-mode-title {
+    font-size: 0.62rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: rgba(255,0,110,0.7); margin-bottom: 3px;
+    display: flex; align-items: center; gap: 5px;
+    font-family: 'Space Mono', monospace; font-weight: 700;
+    transition: color 0.2s;
+  }
+  .review-mode-card.active .review-mode-title { color: var(--neon-pink); }
+  .review-mode-desc {
+    font-size: 0.68rem; color: rgba(255,255,255,0.3); line-height: 1.5;
+  }
+  .review-toggle { position: relative; width: 38px; height: 20px; flex-shrink: 0; }
+  .review-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .review-toggle-track {
+    position: absolute; inset: 0; border-radius: 999px; cursor: pointer;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14);
+    transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
+  }
+  .review-toggle-track::after {
+    content: ''; position: absolute; top: 3px; left: 3px;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: rgba(255,255,255,0.35); transition: transform 0.25s, background 0.25s;
+  }
+  .review-toggle input:checked + .review-toggle-track {
+    background: rgba(255,0,110,0.25); border-color: rgba(255,0,110,0.6);
+    box-shadow: 0 0 10px rgba(255,0,110,0.3);
+  }
+  .review-toggle input:checked + .review-toggle-track::after {
+    transform: translateX(18px); background: var(--neon-pink);
+  }
+
+  /* ── NÚT ✕ RÀ SOÁT TRÊN FLASHCARD ── */
+  .fc-review-hide-btn {
+    position: absolute; top: 10px; right: 10px; z-index: 10;
+    width: 28px; height: 28px; border-radius: 8px;
+    background: rgba(255,0,110,0.1); border: 1px solid rgba(255,0,110,0.3);
+    color: rgba(255,0,110,0.6); font-size: 0.85rem;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.18s; line-height: 1;
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  }
+  .fc-review-hide-btn:hover {
+    background: rgba(255,0,110,0.22); border-color: var(--neon-pink);
+    color: var(--neon-pink); box-shadow: 0 0 10px rgba(255,0,110,0.3);
+    transform: scale(1.12);
+  }
+  /* Badge nhỏ báo đang bật chế độ rà soát */
+  .review-mode-badge {
+    display: none; align-items: center; gap: 5px;
+    font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: rgba(255,0,110,0.6); font-family: 'Space Mono', monospace;
+    margin-bottom: 6px; justify-content: center;
+  }
+  .review-mode-badge.visible { display: flex; }
+  .review-mode-badge-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--neon-pink); animation: pulse 1.5s infinite;
+  }
+
   /* ── LOOP SIZE SETTING ── */
   .loop-setting-card {
     background: rgba(0,245,255,0.04);
@@ -1925,6 +2002,17 @@ const IDB = (() => {
         <span>⬇</span><span>Tải cloud xuống</span>
       </button>
     </div>
+    <!-- ── REVIEW MODE ── -->
+    <div class="review-mode-card" id="reviewModeCard">
+      <div class="review-mode-info">
+        <div class="review-mode-title">🔍 Chế độ rà soát</div>
+        <div class="review-mode-desc">Hiện nút ✕ trên mỗi flashcard để ẩn từ không cần học.</div>
+      </div>
+      <label class="review-toggle">
+        <input type="checkbox" id="reviewModeToggle" onchange="setReviewMode(this.checked)">
+        <span class="review-toggle-track"></span>
+      </label>
+    </div>
     <!-- ── LOOP SETTING ── -->
     <div class="loop-setting-card">
       <div class="loop-setting-title">🔁 Vòng lặp học từ</div>
@@ -2349,6 +2437,9 @@ let loopSize = parseInt(localStorage.getItem('lexon_loop_size') || '0');
 // loopWindow: mảng chỉ số trong studyQueue đang trong vòng lặp
 let loopWindow = [];
 let loopWindowIndex = 0;
+
+// ── REVIEW MODE ── (chế độ rà soát)
+let reviewMode = localStorage.getItem('lexon_review_mode') === '1';
 
 // ============================================================
 //  FIREBASE HELPERS
@@ -3203,8 +3294,45 @@ function _updateLoopUI() {
 function _syncLoopUIOnOpen() { _updateLoopUI(); }
 
 // ============================================================
-//  FLASHCARD
+//  REVIEW MODE
 // ============================================================
+function setReviewMode(on) {
+  reviewMode = !!on;
+  localStorage.setItem('lexon_review_mode', reviewMode ? '1' : '0');
+  _syncReviewModeUI();
+  // Re-render flashcard nếu đang ở tab flashcard
+  const fc = document.getElementById('panel-flashcard');
+  if (fc && fc.classList.contains('active')) {
+    renderFlashcard();
+  }
+}
+
+function _syncReviewModeUI() {
+  const toggle = document.getElementById('reviewModeToggle');
+  const card   = document.getElementById('reviewModeCard');
+  if (toggle) toggle.checked = reviewMode;
+  if (card)   card.classList.toggle('active', reviewMode);
+}
+
+// Ẩn từ hiện tại qua nút ✕ rà soát
+function reviewHideCurrentWord() {
+  const c = studyQueue[currentIndex];
+  if (!c) return;
+  const idx = words.findIndex(x => x.word === c.word);
+  if (idx < 0) return;
+  words[idx].hidden = true;
+  words[idx].mastered = false; // reset mastered khi ẩn (theo logic toggleHideWord)
+  saveData();
+  buildQueue();
+  renderList();
+  updateStudyBadge();
+  refreshStatsBar();
+  // Tiếp tục render flashcard
+  isFlipped = false;
+  renderFlashcard();
+}
+
+
 function renderFlashcard() {
   const el = document.getElementById('fc-content');
   if (!words.length) { el.innerHTML='<div class="warn-box">⚠ Chưa có từ vựng. Vào tab "Nhập Từ" để thêm!</div>'; return; }
@@ -3264,8 +3392,8 @@ function renderFlashcard() {
         <span style="opacity:0.6">Tổng window: ${loopWindow.length} từ</span>
       </div>
     </div>` : ''}
+    ${reviewMode ? `<div class="review-mode-badge visible"><span class="review-mode-badge-dot"></span>Chế độ rà soát đang bật — nhấn ✕ để ẩn từ</div>` : ''}
     <div class="fc-controls">
-      <div class="prog-info"><strong>${currentIndex+1}</strong> / ${studyQueue.length}</div>
       <div class="prog-wrap"><div class="prog-bar" style="width:${prog}%"></div></div>
       <button class="dl-toggle-btn" id="dlToggleBtn" onclick="dlOpen()">
         <span class="dl-toggle-dot"></span>DEEP LEARNING
@@ -3289,6 +3417,7 @@ function renderFlashcard() {
     </div>
     <div class="fc-scene">
       <div class="flashcard" id="theCard" onclick="flipCard()">
+        ${reviewMode ? `<button class="fc-review-hide-btn" onclick="reviewHideCurrentWord();event.stopPropagation()" title="Ẩn từ này (chế độ rà soát)">✕</button>` : ''}
         <div class="fc-face fc-front">
           <div class="fc-hint">${reversedMode ? 'Tiếng Việt – Nhấp để xem tiếng Anh ↕' : 'Nhấp để xem nghĩa ↕'}</div>
           ${reversedMode ? `
@@ -3815,6 +3944,7 @@ async function openProfile() {
 
   document.getElementById('profileOverlay').classList.add('show');
   _syncLoopUIOnOpen();
+  _syncReviewModeUI();
 
   try {
     const snap = await window._getDoc(userDoc());
