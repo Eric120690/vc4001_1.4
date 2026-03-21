@@ -703,6 +703,76 @@ const IDB = (() => {
   }
   .fc-art-btn:hover { color:var(--neon-cyan); }
 
+  /* ── NÚT ROOT WORD ── */
+  .fc-root-btn {
+    display:inline-flex; align-items:center; gap:5px; margin-top:4px;
+    font-size:0.68rem; font-family:'Space Mono',monospace; letter-spacing:0.04em;
+    color:rgba(191,0,255,0.6); cursor:pointer; transition:color 0.15s;
+    background:none; border:none; padding:2px 0;
+  }
+  .fc-root-btn:hover { color:var(--neon-purple); }
+
+  /* ── ROOT WORD MODAL ── */
+  .rootword-overlay {
+    display:none; position:fixed; inset:0; z-index:1200;
+    background:rgba(0,0,0,0.75); backdrop-filter:blur(6px);
+    align-items:center; justify-content:center; padding:20px;
+  }
+  .rootword-overlay.show { display:flex; }
+  .rootword-modal {
+    background:#0d0d1f; border:1px solid rgba(191,0,255,0.25);
+    border-radius:20px; padding:28px; width:100%; max-width:420px;
+    box-shadow:0 0 40px rgba(191,0,255,0.15);
+    position:relative;
+  }
+  .rootword-header {
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;
+  }
+  .rootword-title {
+    font-family:'Syne',sans-serif; font-size:0.75rem; font-weight:800;
+    letter-spacing:0.15em; text-transform:uppercase; color:var(--neon-purple);
+  }
+  .rootword-close {
+    width:28px; height:28px; border-radius:8px; border:1px solid rgba(255,255,255,0.1);
+    background:transparent; color:rgba(255,255,255,0.4); cursor:pointer;
+    font-size:0.85rem; display:flex; align-items:center; justify-content:center;
+    transition:all 0.15s;
+  }
+  .rootword-close:hover { background:rgba(255,0,110,0.1); color:var(--neon-pink); border-color:rgba(255,0,110,0.25); }
+  .rootword-word {
+    font-family:'Syne',sans-serif; font-size:1.4rem; font-weight:800;
+    color:#fff; margin-bottom:16px; letter-spacing:0.03em;
+  }
+  .rootword-body {
+    min-height:80px; font-size:0.82rem; line-height:1.7; color:rgba(255,255,255,0.75);
+  }
+  .rootword-loading {
+    display:flex; align-items:center; gap:8px; color:rgba(191,0,255,0.7);
+    font-family:'Space Mono',monospace; font-size:0.72rem;
+  }
+  @keyframes rootSpin { to { transform:rotate(360deg); } }
+  .rootword-spinner {
+    width:14px; height:14px; border:2px solid rgba(191,0,255,0.2);
+    border-top-color:var(--neon-purple); border-radius:50%;
+    animation:rootSpin 0.8s linear infinite; flex-shrink:0;
+  }
+  .rootword-error { color:rgba(255,0,110,0.8); font-size:0.78rem; }
+  .rootword-no-key {
+    color:rgba(255,230,0,0.8); font-size:0.78rem; line-height:1.6;
+  }
+  .rootword-section { margin-bottom:12px; }
+  .rootword-section-label {
+    font-size:0.58rem; letter-spacing:0.15em; text-transform:uppercase;
+    color:rgba(191,0,255,0.5); font-family:'Space Mono',monospace; margin-bottom:4px;
+  }
+  .rootword-section-content { color:rgba(255,255,255,0.8); font-size:0.82rem; line-height:1.7; }
+  .rootword-tag {
+    display:inline-block; padding:2px 10px; border-radius:999px;
+    background:rgba(191,0,255,0.1); border:1px solid rgba(191,0,255,0.25);
+    color:var(--neon-purple); font-family:'Space Mono',monospace;
+    font-size:0.65rem; margin-right:5px; margin-bottom:4px; letter-spacing:0.06em;
+  }
+
   /* ── ARTICLE DRAWER ── */
   .art-overlay {
     display:none; position:fixed; inset:0; z-index:1100;
@@ -2125,6 +2195,32 @@ const IDB = (() => {
           <button class="admin-save-btn" id="adminSaveCelebrate" onclick="adminSaveCelebrateSettings()">✓ Lưu cài đặt chúc mừng</button>
         </div>
 
+        <!-- Card 3: MAVIS API Key -->
+        <div class="admin-settings-card">
+          <div class="admin-settings-card-title">🔑 Cài đặt API – Root Word</div>
+          <div class="admin-settings-row">
+            <div>
+              <div class="admin-settings-label">MAVIS API Key</div>
+              <div class="admin-settings-sub">Dùng để tra gốc từ qua Claude AI</div>
+            </div>
+          </div>
+          <div style="margin-top:10px">
+            <input type="password" id="adminMavisApiKey" placeholder="mavis-xxxxxxxx"
+              style="width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);
+                     border-radius:10px;padding:10px 14px;color:#fff;font-size:0.82rem;
+                     font-family:'Space Mono',monospace;outline:none;transition:border-color 0.2s;
+                     letter-spacing:0.05em;">
+          </div>
+          <div style="margin-top:10px;padding:10px 14px;background:rgba(0,0,0,0.25);border-radius:10px;
+                      font-size:0.7rem;color:rgba(255,255,255,0.35);line-height:1.8">
+            API Key lấy từ <a href="https://mavis.io.vn/dashboard" target="_blank"
+              style="color:rgba(191,0,255,0.7);text-decoration:none">mavis.io.vn/dashboard</a><br>
+            Key được lưu cục bộ trên trình duyệt (localStorage).<br>
+            Endpoint: <span style="color:rgba(0,245,255,0.5);font-family:'Space Mono',monospace;font-size:0.65rem">https://mavis.io.vn/v1/messages</span>
+          </div>
+          <button class="admin-save-btn" id="adminSaveMavisKey" onclick="adminSaveMavisApiKey()" style="margin-top:12px">✓ Lưu API Key</button>
+        </div>
+
       </div>
     </div>
 
@@ -3436,6 +3532,7 @@ function renderFlashcard() {
           `}
           ${c.example?`<div class="fc-example" style="margin-top:6px" onclick="event.stopPropagation()">🗣 ${h(c.example)}</div>`:''}
           <button class="fc-art-btn" onclick="openArtDrawer(studyQueue[currentIndex]);event.stopPropagation()">📰 xem ngữ cảnh báo chí →</button>
+          <button class="fc-root-btn" onclick="openRootWord(studyQueue[currentIndex]);event.stopPropagation()">🌱 Root word →</button>
         </div>
         <div class="fc-face fc-back">
           <div class="fc-hint">${reversedMode ? 'Tiếng Anh' : 'Nghĩa tiếng Việt'}</div>
@@ -3464,6 +3561,7 @@ function renderFlashcard() {
                : c.example  ? `<div class="fc-example" style="margin-top:6px" onclick="event.stopPropagation()">🗣 ${h(c.example)}</div>` : '')
           }
           <button class="fc-art-btn" onclick="openArtDrawer(studyQueue[currentIndex]);event.stopPropagation()">📰 xem ngữ cảnh báo chí →</button>
+          <button class="fc-root-btn" onclick="openRootWord(studyQueue[currentIndex]);event.stopPropagation()">🌱 Root word →</button>
         </div>
         <!-- Sizer: đẩy chiều cao theo nội dung thực của mặt front -->
         <div class="fc-sizer" aria-hidden="true">
@@ -4581,6 +4679,9 @@ function _adminLoadSettingsUI() {
   set('xpSet-STREAK_7',  v.STREAK_BONUS[7]  || 5);
   set('xpSet-STREAK_14', v.STREAK_BONUS[14] || 10);
   set('xpSet-STREAK_21', v.STREAK_BONUS[21] || 20);
+  // Load MAVIS API Key
+  const keyEl = document.getElementById('adminMavisApiKey');
+  if (keyEl) keyEl.value = _mavisApiKey || '';
 }
 
 async function adminSaveXPValues() {
@@ -5358,6 +5459,7 @@ const XP_MILESTONES = _getMilestones();
 
 // Celebrate config — load từ Firestore appConfig, fallback về default
 let CELEBRATE_EVERY = 5;  // cứ N từ đã thuộc → chúc mừng
+let _mavisApiKey = '';  // load từ Firestore appConfig, chỉ admin mới set
 let _totalMasteredSession = 0; // đếm tổng từ đã thuộc trong session (kể cả reset)
 
 async function _loadAppConfig() {
@@ -5375,6 +5477,7 @@ async function _loadAppConfig() {
         if (d.xpValues.STREAK_BONUS !== undefined) XP_VALUES.STREAK_BONUS = d.xpValues.STREAK_BONUS;
       }
       if (d.celebrateEvery !== undefined) CELEBRATE_EVERY = d.celebrateEvery;
+      if (d.mavisApiKey      !== undefined) _mavisApiKey      = d.mavisApiKey;
     }
   } catch(e) { console.warn('[AppConfig] load error', e); }
 }
@@ -6088,6 +6191,20 @@ if (!navigator.onLine) _showOfflineBanner(true);
 
   </div>
 
+  <!-- ROOT WORD MODAL -->
+  <div class="rootword-overlay" id="rootwordOverlay" onclick="if(event.target===this)closeRootWord()">
+    <div class="rootword-modal">
+      <div class="rootword-header">
+        <div class="rootword-title">🌱 Root Word</div>
+        <button class="rootword-close" onclick="closeRootWord()">✕</button>
+      </div>
+      <div class="rootword-word" id="rootwordTitle">—</div>
+      <div class="rootword-body" id="rootwordBody">
+        <div class="rootword-loading"><div class="rootword-spinner"></div> Đang tra cứu...</div>
+      </div>
+    </div>
+  </div>
+
   <!-- ARTICLE DRAWER -->
   <div class="art-overlay" id="artOverlay" onclick="if(event.target===this)closeArtDrawer()">
     <div class="art-drawer">
@@ -6150,6 +6267,172 @@ function toggleArt(i) {
 function closeArtDrawer() {
   document.getElementById('artOverlay').classList.remove('open');
 }
+
+// ── ROOT WORD FEATURE ──
+const MAVIS_BASE_URL = 'https://mavis.io.vn';
+// In-memory cache (session), tránh re-fetch trong cùng 1 phiên
+const ROOTWORD_CACHE = {};
+
+function getMavisApiKey() {
+  return _mavisApiKey || '';
+}
+
+// Lấy key Firestore-safe: lowercase, chỉ giữ a-z0-9_
+function _rootWordDocKey(word) {
+  return word.toLowerCase().replace(/[^a-z0-9]/g, '_');
+}
+
+async function openRootWord(wordObj) {
+  if (!wordObj) return;
+  const word = wordObj.word || '';
+  const overlay = document.getElementById('rootwordOverlay');
+  const titleEl = document.getElementById('rootwordTitle');
+  const bodyEl  = document.getElementById('rootwordBody');
+
+  titleEl.textContent = word;
+  overlay.classList.add('show');
+
+  const apiKey = getMavisApiKey();
+  if (!apiKey) {
+    bodyEl.innerHTML = '<div class="rootword-no-key">🚧 Tính năng này chưa được cập nhật.</div>';
+    return;
+  }
+
+  // 1. Check in-memory cache trước (nhanh nhất)
+  if (ROOTWORD_CACHE[word]) {
+    renderRootWordResult(bodyEl, ROOTWORD_CACHE[word]);
+    return;
+  }
+
+  bodyEl.innerHTML = `<div class="rootword-loading"><div class="rootword-spinner"></div> Đang tải...</div>`;
+
+  // 2. Check Firestore cache
+  try {
+    const docKey = _rootWordDocKey(word);
+    const ref = window._doc(window._db, 'rootWords', docKey);
+    const snap = await window._getDoc(ref);
+    if (snap.exists()) {
+      const cached = snap.data();
+      ROOTWORD_CACHE[word] = cached;
+      renderRootWordResult(bodyEl, cached);
+      return;
+    }
+  } catch(e) {
+    console.warn('[RootWord] Firestore read error', e);
+  }
+
+  // 3. Gọi API nếu chưa có trong DB
+  bodyEl.innerHTML = `<div class="rootword-loading"><div class="rootword-spinner"></div> Đang tra cứu gốc từ...</div>`;
+  try {
+    const result = await fetchRootWord(word, apiKey);
+    // Lưu vào in-memory cache
+    ROOTWORD_CACHE[word] = result;
+    // Lưu vào Firestore để dùng lại sau
+    try {
+      const docKey = _rootWordDocKey(word);
+      await window._setDoc(
+        window._doc(window._db, 'rootWords', docKey),
+        { ...result, _word: word, _savedAt: Date.now() }
+      );
+    } catch(e) {
+      console.warn('[RootWord] Firestore write error', e);
+    }
+    renderRootWordResult(bodyEl, result);
+  } catch(err) {
+    bodyEl.innerHTML = `<div class="rootword-error">✕ Lỗi: ${err.message}</div>`;
+  }
+}
+
+async function fetchRootWord(word, apiKey) {
+  const prompt = `Gốc của từ: ${word}. Chỉ trả về JSON, không giải thích thêm: {"cauTao":"...","lichSu":"...","meoNhoR":"..."}`;
+
+  const res = await fetch(`${MAVIS_BASE_URL}/v1/messages`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 400,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(()=>'');
+    if (res.status === 401) throw new Error('API Key không hợp lệ (401)');
+    if (res.status === 402) throw new Error('Hết quota, vui lòng nâng cấp gói MAVIS (402)');
+    throw new Error(`Lỗi server ${res.status}: ${errText.slice(0,120)}`);
+  }
+
+  const data = await res.json();
+  let rawText = '';
+  if (typeof data.content === 'string') {
+    rawText = data.content;
+  } else if (Array.isArray(data.content)) {
+    rawText = data.content.map(b => b.text || (typeof b === 'string' ? b : '')).join('');
+  } else if (data.choices) {
+    rawText = data.choices?.[0]?.message?.content || '';
+  }
+  // Strip markdown fences
+  const clean = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+  // Extract JSON block even if there's surrounding text
+  const jsonMatch = clean.match(/\{[\s\S]*\}/);
+  try {
+    return JSON.parse(jsonMatch ? jsonMatch[0] : clean);
+  } catch(e) {
+    return { cauTao: '', lichSu: rawText, meoNhoR: '' };
+  }
+}
+
+function renderRootWordResult(container, data) {
+  const sections = [
+    { key: 'cauTao',   icon: '🧩', label: 'Cấu tạo từ'          },
+    { key: 'lichSu',   icon: '📜', label: 'Lịch sử hình thành'  },
+    { key: 'meoNhoR',  icon: '💡', label: 'Mẹo ghi nhớ'         },
+  ];
+
+  let html = '';
+  for (const s of sections) {
+    const val = data[s.key];
+    if (!val) continue;
+    html += `<div class="rootword-section">
+      <div class="rootword-section-label">${s.icon} ${s.label}</div>
+      <div class="rootword-section-content">${h(val)}</div>
+    </div>`;
+  }
+
+  if (!html) {
+    // fallback nếu Claude trả về text thay vì JSON
+    const raw = typeof data === 'string' ? data : JSON.stringify(data);
+    html = `<div class="rootword-section-content">${h(raw)}</div>`;
+  }
+
+  container.innerHTML = html;
+}
+function closeRootWord() {
+  document.getElementById('rootwordOverlay').classList.remove('show');
+}
+
+// Admin: save MAVIS API Key
+async function adminSaveMavisApiKey() {
+  if (!isAdmin()) return;
+  const key = (document.getElementById('adminMavisApiKey')?.value || '').trim();
+  _mavisApiKey = key;
+  try {
+    await window._setDoc(
+      window._doc(window._db, 'appConfig', 'scoring'),
+      { mavisApiKey: key },
+      { merge: true }
+    );
+    const btn = document.getElementById('adminSaveMavisKey');
+    if (btn) { btn.textContent = '✓ Đã lưu!'; btn.classList.add('saved'); setTimeout(() => { btn.textContent = '✓ Lưu API Key'; btn.classList.remove('saved'); }, 2000); }
+  } catch(e) { alert('Lỗi lưu API Key: ' + e.message); }
+}
+
+
 // ── CONTEXT FILE UPLOAD (Admin) ──
 function handleDragOver2(e) { e.preventDefault(); document.getElementById('ctxDropzone').classList.add('drag-over'); }
 function handleDragLeave2() { document.getElementById('ctxDropzone').classList.remove('drag-over'); }
