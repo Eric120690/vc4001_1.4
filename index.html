@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>✦ LEXON — Học Từ Vựng</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<!-- ✦ Firebase SDK -->
+<link rel="stylesheet" href="css/style.css">
+
+<!-- Firebase SDK — type=module must stay, loaded as external module script -->
+<script type="module" src="js/firebase.js"></script>
+
+<!-- IndexedDB offline cache -->
+<script src="js/idb.js"></script>
+</head>
+<body>
+
+
+<!-- ===== ACCESS DENIED OVERLAY ===== -->
+<div class="access-denied-overlay" id="accessDeniedOverlay">
+  <div id="accessDeniedBox"></div>
+</div>
+
+<!-- ===== LOGIN OVERLAY ===== -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-logo">LEXON</div>
+    <div class="login-sub">Vocabulary Training System</div>
+    <div class="login-desc">Đăng nhập để truy cập LEXON.<br><span style="color:rgba(255,200,0,0.6);font-size:0.78rem">⚠ Yêu cầu tài khoản được cấp phép.</span></div>
+    <div class="login-features">
+      <div class="login-feat"><span class="login-feat-icon">☁</span> Đồng bộ dữ liệu trên tất cả thiết bị</div>
+      <div class="login-feat"><span class="login-feat-icon">🔥</span> Theo dõi streak học tập hàng ngày</div>
+      <div class="login-feat"><span class="login-feat-icon">📊</span> Thống kê tiến độ cá nhân</div>
+      <div class="login-feat"><span class="login-feat-icon">🔒</span> Dữ liệu riêng tư, chỉ bạn được xem</div>
+    </div>
+    <button class="btn-google" onclick="signInWithGoogle()">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+      Đăng nhập với Google
+    </button>
+    <div id="loginStatusMsg" style="margin-top:14px;font-size:0.78rem;color:rgba(255,255,255,0.35);min-height:20px;text-align:center"></div>
+  </div>
+</div>
+
+<!-- ===== INITIAL LOADING OVERLAY ===== -->
+<div class="init-loading-overlay" id="initLoadingOverlay">
+  <div class="init-loading-box">
+    <div class="init-loading-logo">LEXON</div>
+    <div class="init-loading-title" id="initLoadingTitle">Đang tải bộ từ vựng...</div>
+    <div class="init-loading-sub" id="initLoadingSub">Lần đầu mở app — đang tải về máy</div>
+    <div class="init-progress-track">
+      <div class="init-progress-fill" id="initProgressFill"></div>
+    </div>
+    <div class="init-progress-label" id="initProgressLabel">0 / 0 gói</div>
+    <div class="init-pack-list" id="initPackList"></div>
+  </div>
+</div>
+
+<!-- ===== USER PROFILE PANEL ===== -->
+<div class="profile-overlay" id="profileOverlay" onclick="closeProfile(event)">
+  <div class="profile-panel" id="profilePanel">
+    <div class="profile-header">
+      <div id="profileBigAvatar"></div>
+      <div>
+        <div class="profile-name" id="profileName">—</div>
+        <div class="profile-email" id="profileEmail">—</div>
+      </div>
+    </div>
+    <div class="profile-streak" id="profileStreak">
+      <span class="profile-streak-fire">🔥</span>
+      <span class="profile-streak-count" id="streakCount">0</span>
+      <span class="profile-streak-label">ngày streak</span>
+    </div>
+    <div class="profile-stats-grid">
+      <button class="sync-profile-btn upload" id="syncUpBtn" onclick="manualPush()">
+        <span>⬆</span><span>Tải lên cloud</span>
+      </button>
+      <button class="sync-profile-btn download" id="syncDownBtn" onclick="manualPull()">
+        <span>⬇</span><span>Tải cloud xuống</span>
+      </button>
+    </div>
+    <!-- ── LOOP SETTING ── -->
+    <div class="loop-setting-card">
+      <div class="loop-setting-title">🔁 Vòng lặp học từ</div>
+      <div class="loop-setting-desc">Học N từ rồi lặp lại từ đầu. Khi thuộc 1 từ, tự động thêm từ tiếp vào vòng.</div>
+      <div class="loop-size-btns" id="loopSizeBtns">
+        <button class="loop-size-btn" onclick="setLoopSize(5)">5</button>
+        <button class="loop-size-btn" onclick="setLoopSize(6)">6</button>
+        <button class="loop-size-btn" onclick="setLoopSize(7)">7</button>
+        <button class="loop-size-btn" onclick="setLoopSize(8)">8</button>
+        <button class="loop-size-btn" onclick="setLoopSize(9)">9</button>
+        <button class="loop-size-btn" onclick="setLoopSize(10)">10</button>
+      </div>
+      <button class="loop-off-btn" id="loopOffBtn" onclick="setLoopSize(0)">✕ Tắt vòng lặp</button>
+      <div class="loop-status-badge" id="loopStatusBadge" style="display:none">
+        <span class="dot"></span><span id="loopStatusText"></span>
+      </div>
+    </div>
+    <div class="profile-section-title">Lịch sử học gần đây</div>
+    <div class="profile-history" id="profileHistory"></div>
+    <button class="btn-signout" style="width:100%;justify-content:center;margin-top:4px" onclick="handleSignOut()">⊖ Đăng xuất</button>
+  </div>
+</div>
+
+<!-- ===== ADMIN PANEL ===== -->
+<div class="admin-overlay" id="adminOverlay">
+  <div class="admin-panel">
+    <!-- Top bar -->
+    <div class="admin-topbar">
+      <div class="admin-title">⬡ LEXON ADMIN</div>
+      <button class="admin-close" onclick="closeAdminPanel()">✕ Đóng</button>
+    </div>
+    <!-- Main tabs -->
+    <div class="admin-main-tabs">
+      <button class="admin-main-tab active" id="adminTab-users" onclick="switchAdminTab('users')">◈ Người dùng</button>
+      <button class="admin-main-tab" id="adminTab-settings" onclick="switchAdminTab('settings')">⚙ Cài đặt</button>
+    </div>
+
+    <!-- TAB: Người dùng -->
+    <div class="admin-tab-panel active" id="adminPanel-users">
+      <div class="admin-stats-row" id="adminStatsRow">
+        <div class="admin-stat"><div class="admin-stat-val" id="astatUsers">—</div><div class="admin-stat-lbl">Người dùng</div></div>
+        <div class="admin-stat"><div class="admin-stat-val" id="astatPending" style="color:var(--neon-yellow)">—</div><div class="admin-stat-lbl">Chờ duyệt</div></div>
+        <div class="admin-stat"><div class="admin-stat-val" id="astatWords">—</div><div class="admin-stat-lbl">Tổng từ</div></div>
+        <div class="admin-stat"><div class="admin-stat-val" id="astatMastered">—</div><div class="admin-stat-lbl">Đã thuộc</div></div>
+      </div>
+      <div class="admin-users-title">◈ Danh sách người dùng</div>
+      <input class="admin-search" id="adminSearch" placeholder="🔍  Tìm theo tên hoặc email..." oninput="filterAdminUsers()">
+      <div class="admin-users-list" id="adminUsersList">
+        <div class="admin-loading">⟳ Đang tải dữ liệu...</div>
+      </div>
+    </div>
+
+    <!-- TAB: Cài đặt -->
+    <div class="admin-tab-panel" id="adminPanel-settings">
+      <div class="admin-settings-grid">
+
+        <!-- Card 1: XP Values -->
+        <div class="admin-settings-card">
+          <div class="admin-settings-card-title">✦ Điểm XP mỗi hành động</div>
+          <div class="admin-settings-row">
+            <div><div class="admin-settings-label">Đăng nhập hàng ngày</div><div class="admin-settings-sub">Mỗi lần login mới trong ngày</div></div>
+            <input class="admin-xp-input" id="xpSet-LOGIN_DAILY" type="number" min="0" max="100" value="5">
+          </div>
+          <div class="admin-settings-row">
+            <div><div class="admin-settings-label">Bấm "Đã thuộc"</div><div class="admin-settings-sub">Mỗi lần mark mastered</div></div>
+            <input class="admin-xp-input" id="xpSet-MASTERED" type="number" min="0" max="100" value="10">
+          </div>
+          <div class="admin-settings-row">
+            <div><div class="admin-settings-label">10 phút active</div><div class="admin-settings-sub">Mỗi 10 phút tương tác thật</div></div>
+            <input class="admin-xp-input" id="xpSet-ACTIVE_10MIN" type="number" min="0" max="100" value="8">
+          </div>
+          <div class="admin-settings-row">
+            <div><div class="admin-settings-label">Mở article context</div><div class="admin-settings-sub">Đọc ngữ cảnh bài báo</div></div>
+            <input class="admin-xp-input" id="xpSet-ARTICLE_OPEN" type="number" min="0" max="100" value="5">
+          </div>
+          <div class="admin-settings-row">
+            <div><div class="admin-settings-label">Vào học (mở pack)</div><div class="admin-settings-sub">1 lần/ngày/pack</div></div>
+            <input class="admin-xp-input" id="xpSet-OPEN_PACK" type="number" min="0" max="100" value="3">
+          </div>
+          <button class="admin-save-btn" id="adminSaveXP" onclick="adminSaveXPValues()">✓ Lưu cài đặt XP</button>
+        </div>
+
+        <!-- Card 2: Chúc mừng theo từ đã thuộc -->
+        <div class="admin-settings-card">
+          <div class="admin-settings-card-title">🎉 Chúc mừng theo từ đã thuộc</div>
+          <div class="admin-settings-row">
+            <div><div class="admin-settings-label">Cứ mỗi N từ đã thuộc</div><div class="admin-settings-sub">Hiện hiệu ứng chúc mừng</div></div>
+            <input class="admin-xp-input" id="xpSet-CELEBRATE_EVERY" type="number" min="1" max="50" value="5">
+          </div>
+          <div style="margin-top:16px;padding:12px 14px;background:rgba(0,0,0,0.25);border-radius:10px;font-size:0.72rem;color:rgba(255,255,255,0.4);line-height:1.8">
+            Ví dụ: đặt <strong style="color:var(--neon-cyan)">5</strong> → hiện thông báo khi thuộc được 5, 10, 15, 20... từ<br>
+            Thông báo: <em style="color:rgba(255,255,255,0.55)">"Chúc mừng! Bạn đã thuộc thêm 5 từ 🎉"</em>
+          </div>
+          <div class="admin-settings-row" style="margin-top:8px">
+            <div><div class="admin-settings-label">Streak bonus — 3 ngày</div></div>
+            <input class="admin-xp-input" id="xpSet-STREAK_3" type="number" min="0" max="50" value="2">
+          </div>
+          <div class="admin-settings-row">
+            <div><div class="admin-settings-label">Streak bonus — 7 ngày</div></div>
+            <input class="admin-xp-input" id="xpSet-STREAK_7" type="number" min="0" max="50" value="5">
+          </div>
+          <div class="admin-settings-row">
+            <div><div class="admin-settings-label">Streak bonus — 14 ngày</div></div>
+            <input class="admin-xp-input" id="xpSet-STREAK_14" type="number" min="0" max="50" value="10">
+          </div>
+          <div class="admin-settings-row">
+            <div><div class="admin-settings-label">Streak bonus — 21 ngày</div></div>
+            <input class="admin-xp-input" id="xpSet-STREAK_21" type="number" min="0" max="50" value="20">
+          </div>
+          <button class="admin-save-btn" id="adminSaveCelebrate" onclick="adminSaveCelebrateSettings()">✓ Lưu cài đặt chúc mừng</button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== ADMIN USER DETAIL PANEL ===== -->
+<div class="admin-detail-overlay" id="adminDetailOverlay">
+  <div class="admin-detail-panel">
+    <div class="admin-detail-header">
+      <div id="adminDetailAvatar"></div>
+      <div class="admin-detail-info">
+        <div class="admin-detail-name" id="adminDetailName">—</div>
+        <div class="admin-detail-email" id="adminDetailEmail">—</div>
+      </div>
+      <div class="admin-detail-actions">
+        <button class="admin-detail-close" onclick="closeAdminDetail()">← Quay lại</button>
+      </div>
+    </div>
+    <div class="admin-detail-tabs">
+      <button class="admin-detail-tab active" onclick="switchDetailTab('overview',this)">📊 Tổng quan</button>
+      <button class="admin-detail-tab" onclick="switchDetailTab('packs',this)">📦 Gói từ vựng</button>
+      <button class="admin-detail-tab" onclick="switchDetailTab('history',this)">📅 Lịch sử</button>
+    </div>
+    <div class="admin-detail-body">
+      <!-- Overview tab -->
+      <div class="admin-detail-panel-content active" id="detail-tab-overview">
+        <div class="admin-user-stat-grid" id="adminDetailStats"></div>
+        <div style="font-size:0.62rem;color:rgba(255,255,255,0.3);letter-spacing:0.2em;text-transform:uppercase;margin-bottom:8px">Thông tin tài khoản</div>
+        <div id="adminDetailInfo" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:12px;padding:14px;font-size:0.78rem;line-height:2;color:rgba(255,255,255,0.5)"></div>
+      </div>
+      <!-- Packs tab -->
+      <div class="admin-detail-panel-content" id="detail-tab-packs">
+        <div id="adminDetailPacksView"></div>
+      </div>
+      <!-- History tab -->
+      <div class="admin-detail-panel-content" id="detail-tab-history">
+        <div id="adminDetailHistory"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- CHALLENGE CREATE MODAL -->
+<div class="challenge-modal-overlay" id="challengeCreateModal">
+  <div class="challenge-modal">
+    <div class="challenge-modal-title">⚡ Tạo thử thách mới</div>
+    <input type="text" id="challengeNameInput" placeholder="Tên thử thách, VD: 7 ngày liên tục..." maxlength="60">
+    <textarea id="challengeDescInput" rows="2" placeholder="Mô tả ngắn (tùy chọn)" maxlength="120"></textarea>
+    <div class="challenge-modal-actions">
+      <button class="btn-primary" style="flex:1;justify-content:center" onclick="saveChallenge()">✓ Tạo thử thách</button>
+      <button class="btn-cancel" onclick="closeChallengeModal()">✕ Hủy</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal">
+    <div class="modal-title">⊕ Xác nhận Import từ Excel</div>
+    <div class="modal-sub" id="modalSub"></div>
+    <div class="modal-list" id="modalList"></div>
+    <div class="modal-actions">
+      <button class="btn-confirm" onclick="confirmImport()">✓ Thêm vào danh sách</button>
+      <button class="btn-cancel"  onclick="closeModal()">✕ Hủy</button>
+    </div>
+  </div>
+</div>
+
+<!-- PACK MODAL -->
+<div class="pack-modal-overlay" id="packModal">
+  <div class="pack-modal">
+    <div class="pack-modal-title" id="packModalTitle">✦ Tạo gói từ vựng mới</div>
+    <input type="text" id="packNameInput" placeholder="Tên gói, VD: IELTS, Business English..." maxlength="50">
+    <input type="text" id="packDescInput" placeholder="Mô tả ngắn (tùy chọn)" maxlength="80">
+    <div class="pack-modal-actions">
+      <button class="btn-primary" style="flex:1;justify-content:center" onclick="savePackModal()">✓ Lưu</button>
+      <button class="btn-danger" style="justify-content:center" onclick="closePackModal()">✕ Hủy</button>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- AUTH BAR -->
+  <div class="auth-bar" id="authBar">
+    <button class="btn-google" onclick="signInWithGoogle()" id="loginBtn">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:16px;height:16px"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+      Đăng nhập
+    </button>
+  </div>
+
+  <div class="header">
+    <div class="logo">LEXON</div>
+    <div class="tagline">Vocabulary Training System</div>
+  </div>
+
+  <!-- ===== STATS BAR ===== -->
+  <div id="statsBar" style="display:none;text-align:center;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap">
+    <span id="statHoursVal" style="font-family:'Space Mono',monospace;font-size:0.65rem;color:rgba(255,255,255,0.25);letter-spacing:0.08em">⏱ 0p học</span>
+    <span style="color:rgba(255,255,255,0.1)">·</span>
+    <button onclick="showStudyHistory()" style="font-family:'Space Mono',monospace;font-size:0.65rem;letter-spacing:0.08em;color:rgba(255,255,255,0.25);background:none;border:none;padding:0;cursor:pointer;transition:color 0.2s;" onmouseover="this.style.color='rgba(255,255,255,0.5)'" onmouseout="this.style.color='rgba(255,255,255,0.25)'">lịch sử</button>
+    <span style="color:rgba(255,255,255,0.1)">·</span>
+    <button onclick="showDailySummary()" style="font-family:'Space Mono',monospace;font-size:0.65rem;letter-spacing:0.08em;color:rgba(255,255,255,0.25);background:none;border:none;padding:0;cursor:pointer;transition:color 0.2s;" onmouseover="this.style.color='rgba(255,255,255,0.5)'" onmouseout="this.style.color='rgba(255,255,255,0.25)'">hôm nay</button>
+  </div>
+
+  <!-- ===== MAIN NAV ===== -->
+  <div class="main-nav" id="mainNav">
+    <button class="main-nav-btn active" id="mainNavPacks" onclick="switchMainTab('packs')">📦 Từ Vựng</button>
+    <button class="main-nav-btn" id="mainNavChallenge" onclick="switchMainTab('challenge')">⚡ Thử Thách<span class="nav-dot" id="challengeNavDot" style="display:none"></span></button>
+  </div>
+
+  <!-- ===== PACKS SCREEN ===== -->
+  <div class="screen active" id="screen-packs">
+    <!-- TAB: Từ Vựng -->
+    <div id="mainTabPacks">
+      <div class="card">
+        <div class="packs-grid" id="packsGrid"></div>
+      </div>
+    </div>
+    <!-- TAB: Thử Thách -->
+    <div id="mainTabChallenge" style="display:none">
+      <div id="challengeCardContainer"></div>
+    </div>
+  </div>
+
+  <!-- ===== STUDY SCREEN ===== -->
+  <div class="screen" id="screen-study">
+
+    <div class="card" style="margin-bottom:12px;padding:16px 20px">
+      <div class="pack-study-header">
+        <button class="pack-back-btn" onclick="backToPacks()">← Gói từ vựng</button>
+        <div>
+          <div class="pack-study-title" id="studyPackName"></div>
+          <div class="pack-study-badge" id="studyPackBadge"></div>
+          <div id="cloudBadge" style="font-size:0.68rem;color:rgba(255,255,255,0.3);letter-spacing:0.05em;margin-top:2px">☁ Chưa lưu</div>
+        </div>
+      </div>
+      <div class="tabs" style="margin-bottom:0">
+        <button class="tab-btn active" id="tabInput" onclick="switchTab('input')">✦ Nhập Từ</button>
+        <button class="tab-btn" id="tabFlashcard" onclick="switchTab('flashcard')">⚡ Flashcard</button>
+        <button class="tab-btn" id="tabList" onclick="switchTab('list')">◈ Danh Sách</button>
+        <button class="tab-btn" id="tabArticles" onclick="switchTab('articles')">📝 Bài Viết</button>
+      </div>
+    </div>
+
+  <!-- ========== NHẬP TỪ ========== -->
+  <div class="panel active" id="panel-input">
+    <div class="card">
+      <div class="section-label">Nguồn nhập từ vựng</div>
+
+      <div class="import-grid">
+
+        <!-- Excel -->
+        <div>
+          <div class="section-label" style="font-size:0.62rem;margin-bottom:10px">📗 Import từ file Excel</div>
+          <div class="excel-dropzone" id="dropzone"
+            ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+            <input type="file" id="excelFile" accept=".xlsx,.xls" onchange="handleFileSelect(event)">
+            <span class="dz-icon">📊</span>
+            <div class="dz-title">Kéo & thả file vào đây</div>
+            <div class="dz-sub">hoặc nhấp để chọn file<br>.xlsx / .xls</div>
+            <div class="col-tags">
+              <span class="col-tag">No.</span>
+              <span class="col-tag">Word</span>
+              <span class="col-tag">Nghĩa TV</span>
+              <span class="col-tag">Phonetics</span>
+              <span class="col-tag">Description</span>
+              <span class="col-tag">Example</span>
+              <span class="col-tag">Type</span>
+              <span class="col-tag">Level</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Manual -->
+        <div class="text-import">
+          <div class="section-label" style="font-size:0.62rem;margin-bottom:10px">⌨ Nhập thủ công</div>
+          <textarea id="wordInput" placeholder="apple - quả táo
+beautiful - đẹp đẽ - (adj)
+serendipity - tình cờ may mắn - (n) - It was pure serendipity."></textarea>
+          <div class="fmt-hint">Mỗi dòng: <span>từ</span> - <span>nghĩa</span> - <span>(loại)</span> - <span>ví dụ</span></div>
+          <button class="btn-primary" style="margin-top:12px;width:100%;justify-content:center" onclick="importText()">⊕ Thêm vào danh sách</button>
+        </div>
+      </div>
+
+      <div id="importToast" class="import-toast"></div>
+
+      <!-- ── UPLOAD NGỮ CẢNH BÁO CHÍ (per-pack) ── -->
+      <div style="margin-top:20px;padding:16px;background:rgba(0,245,255,0.03);border:1px solid rgba(0,245,255,0.12);border-radius:14px">
+        <div style="font-size:0.62rem;letter-spacing:0.2em;text-transform:uppercase;color:rgba(0,245,255,0.5);margin-bottom:12px">📰 Thêm ngữ cảnh báo chí</div>
+        <div class="excel-dropzone" id="ctxDropzone" style="min-height:80px;padding:14px;border-color:rgba(0,245,255,0.2)"
+          ondragover="handleDragOver2(event)" ondragleave="handleDragLeave2(event)" ondrop="handleDropCtx(event)">
+          <input type="file" id="ctxFile" accept=".xlsx,.xls" onchange="handleFileSelectCtx(event)">
+          <span class="dz-icon" style="font-size:1.3rem">📰</span>
+          <div class="dz-title" style="font-size:0.78rem">Kéo thả hoặc nhấp để chọn file ngữ cảnh</div>
+          <div class="dz-sub" style="font-size:0.63rem">Hệ thống đối chiếu cột <strong>Word</strong> → gắn ngữ cảnh cho từ khớp trong gói này</div>
+          <div class="col-tags" style="margin-top:8px">
+            <span class="col-tag" style="border-color:rgba(0,245,255,0.4);color:var(--neon-cyan)">Word ✦</span>
+            <span class="col-tag">Nguồn báo</span>
+            <span class="col-tag">Ngữ cảnh VI</span>
+            <span class="col-tag">Trích dẫn gốc</span>
+            <span class="col-tag">Dịch câu</span>
+            <span class="col-tag">Link</span>
+          </div>
+        </div>
+        <div id="ctxImportResult" style="margin-top:10px;display:none"></div>
+      </div>
+
+      <div class="storage-row">
+        <div class="storage-badge">
+          <span class="storage-dot"></span>
+          Dữ liệu tự động lưu trên trình duyệt (localStorage)
+        </div>
+        <div class="tts-badge">🔊 TTS: Google Translate · Cambridge Dictionary</div>
+        <button class="btn-danger" onclick="clearAllData()">✕ Xóa toàn bộ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== FLASHCARD ========== -->
+  <div class="panel" id="panel-flashcard">
+    <div id="fc-content"></div>
+  </div>
+
+  <!-- ========== DANH SÁCH ========== -->
+  <div class="panel" id="panel-list">
+    <div class="card">
+      <div class="list-toolbar">
+        <div class="section-label" style="margin-bottom:0">Danh sách từ vựng</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <button class="btn-copy-words" id="btnCopyWords" onclick="copyLearningWords()">⎘ Copy từ đang học</button>
+          <button class="btn-ai-writer" id="btnAiWriter" onclick="openAiWriter()">✦ AI Tạo Bài Viết</button>
+          <div class="word-count">
+            <strong id="totalCount">0</strong> từ &nbsp;|&nbsp;
+            <strong id="masteredCount" style="color:var(--neon-green)">0</strong> đã thuộc
+          </div>
+        </div>
+      </div>
+      <div class="filter-row">
+        <button class="filter-btn active" onclick="setFilter('all',this)">Tất cả</button>
+        <button class="filter-btn" onclick="setFilter('learning',this)">Đang học</button>
+        <button class="filter-btn" onclick="setFilter('mastered',this)">Đã thuộc</button>
+        <button class="filter-btn" onclick="setFilter('hidden',this)">🚫 Đã ẩn</button>
+      </div>
+      <div class="word-table-wrap">
+        <table class="word-table">
+          <thead>
+            <tr>
+              <th style="width:30px">#</th>
+              <th>Từ / Phiên âm</th>
+              <th>Nghĩa</th>
+              <th style="width:55px">Level</th>
+              <th style="width:36px">✓</th>
+              <th style="width:28px" title="Ẩn/hiện">👁</th>
+              <th style="width:34px"></th>
+            </tr>
+          </thead>
+          <tbody id="wordTableBody"></tbody>
+        </table>
+      </div>
+      <div id="listEmpty" class="empty-state" style="display:none">
+        <span class="empty-icon">◈</span>
+        <p>Chưa có từ nào.<br>Hãy import từ Excel hoặc nhập thủ công.</p>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ========== BÀI VIẾT ========== -->
+  <div class="panel" id="panel-articles">
+    <div class="card">
+      <div class="saved-articles-section" style="margin-top:0;border-top:none;padding-top:0">
+        <div class="list-toolbar">
+          <div class="section-label" style="margin-bottom:0">Bài viết đã lưu</div>
+        </div>
+        <div id="savedArticlesList"></div>
+        <div id="savedArticlesEmpty" class="empty-state" style="display:none">
+          <span class="empty-icon">📝</span>
+          <p>Chưa có bài viết nào.<br>Nhấn "✦ AI Tạo Bài Viết" để tạo bài đầu tiên.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- /screen-study -->
+</div><!-- /container -->
+
+<!-- ROOT WORD MODAL -->
+<div class="rootword-overlay" id="rootwordOverlay" onclick="if(event.target===this)closeRootWord()">
+  <div class="rootword-modal">
+    <div class="rootword-header">
+      <div class="rootword-title">🌱 Root Word</div>
+      <button class="rootword-close" onclick="closeRootWord()">✕</button>
+    </div>
+    <div class="rootword-word" id="rootwordTitle">—</div>
+    <div class="rootword-body" id="rootwordBody">
+      <div class="rootword-loading"><div class="rootword-spinner"></div> Đang tra cứu...</div>
+    </div>
+  </div>
+</div>
+
+<!-- AI WRITER MODAL -->
+<div class="aiwriter-overlay" id="aiwriterOverlay" onclick="if(event.target===this)closeAiWriter()">
+  <div class="aiwriter-modal">
+    <div class="aiwriter-header">
+      <div class="aiwriter-title">✦ AI Tạo Bài Viết</div>
+      <button class="aiwriter-close" onclick="closeAiWriter()">✕</button>
+    </div>
+    <div class="aiwriter-info" id="aiwriterInfo">Chọn chủ đề — AI sẽ tạo bài viết tích hợp các từ bạn <strong>chưa thuộc</strong>.</div>
+    <div class="aiwriter-topic-grid" id="aiwriterTopicGrid"></div>
+    <button class="aiwriter-generate-btn" id="aiwriterGenBtn" onclick="generateArticle()" disabled>✦ Tạo bài viết</button>
+    <div class="aiwriter-result" id="aiwriterResult">
+      <div class="aiwriter-article" id="aiwriterArticleEl"></div>
+      <button class="aiwriter-save-btn" id="aiwriterSaveBtn" onclick="saveGeneratedArticle()">✦ Lưu bài viết này</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI VIEW OVERLAY (đọc bài đã lưu) -->
+<div class="aiview-overlay" id="aiviewOverlay" onclick="if(event.target===this)closeAiView()">
+  <div class="aiview-modal">
+    <div class="aiview-header">
+      <div class="aiview-topic" id="aiviewTopic"></div>
+      <button class="aiview-close" onclick="closeAiView()">✕</button>
+    </div>
+    <div class="aiview-body" id="aiviewBody"></div>
+  </div>
+</div>
+
+
+  <!-- ===== DEEP LEARNING OVERLAY ===== -->
+  <button class="dl-exit-btn" id="dlExitBtn" onclick="dlExitOrSummary()">✕ Kết thúc</button>
+  <div class="dl-overlay" id="dlOverlay">
+
+    <!-- INTRO SCREEN -->
+    <div class="dl-intro" id="dlIntro">
+      <span class="dl-intro-icon">🧠</span>
+      <div class="dl-intro-title">DEEP LEARNING</div>
+      <div class="dl-intro-badge">Chế độ học tập tích cực</div>
+      <div class="dl-intro-msg">
+        Bạn đang bước vào <strong>chế độ tập trung sâu</strong>. Trong khoảng thời gian này, bạn sẽ luyện viết lại từng từ để ghi nhớ thật sâu.<br><br>
+        Hãy <strong>ngồi xuống</strong>, uống một ngụm nước, ăn miếng bánh nhỏ và chuẩn bị tinh thần. Không có điểm số, không có áp lực — chỉ có bạn và những từ vựng. 🍵
+      </div>
+      <div style="font-size:0.72rem;color:rgba(255,255,255,0.3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:10px;font-family:'Space Mono',monospace">Chọn thời gian học</div>
+      <div class="dl-duration-row">
+        <button class="dl-dur-btn" data-min="10" onclick="dlSetDuration(10,this)">10<span>phút</span></button>
+        <button class="dl-dur-btn active" data-min="15" onclick="dlSetDuration(15,this)">15<span>phút</span></button>
+        <button class="dl-dur-btn" data-min="20" onclick="dlSetDuration(20,this)">20<span>phút</span></button>
+      </div>
+      <button class="dl-start-btn" onclick="dlStartCountdown()">Bắt đầu →</button>
+    </div>
+
+    <!-- COUNTDOWN SCREEN -->
+    <div class="dl-countdown" id="dlCountdown" style="display:none">
+      <div class="dl-countdown-num" id="dlCountNum">3</div>
+      <div class="dl-countdown-label">Chuẩn bị...</div>
+    </div>
+
+    <!-- SESSION SCREEN -->
+    <div class="dl-session" id="dlSession" style="display:none">
+      <div class="dl-timer-bar-wrap">
+        <div class="dl-timer-track"><div class="dl-timer-fill" id="dlTimerFill" style="width:100%"></div></div>
+        <div class="dl-timer-clock" id="dlTimerClock">—</div>
+      </div>
+      <div class="dl-word-card" id="dlWordCard">
+        <div class="dl-field-toggles">
+          <button class="dl-field-btn active" id="dlToggleEN"  onclick="dlToggleField('en')"  title="Ẩn/hiện từ tiếng Anh">EN</button>
+          <button class="dl-field-btn active" id="dlToggleIPA" onclick="dlToggleField('ipa')" title="Ẩn/hiện phát âm">IPA</button>
+          <button class="dl-field-btn active" id="dlToggleVI"  onclick="dlToggleField('vi')"  title="Ẩn/hiện nghĩa tiếng Việt">VI</button>
+        </div>
+        <div class="dl-hard-count" id="dlHardCount">
+          <span id="dlHardCountText">0 / 5 từ khó</span>
+          <div class="dl-hard-count-bar" id="dlHardCountBar"></div>
+        </div>
+        <div class="dl-hard-banner" id="dlHardBanner">
+          <span>🔥</span>
+          <span id="dlHardBannerText">Đang học loop từ khó</span>
+          <button onclick="dlPauseHardLoop()" style="
+            margin-left:auto;padding:2px 10px;border-radius:20px;cursor:pointer;
+            border:1px solid rgba(255,140,0,0.4);background:rgba(255,140,0,0.1);
+            color:rgba(255,140,0,0.8);font-family:'Space Mono',monospace;
+            font-size:0.58rem;font-weight:700;letter-spacing:0.06em;transition:all 0.15s;
+          ">TẠM DỪNG ✕</button>
+        </div>
+        <div class="dl-card-progress" id="dlCardProgress">1 từ</div>
+        <div class="dl-card-word"     id="dlCardWord">—</div>
+        <div class="dl-card-phonetic" id="dlCardPhonetic"></div>
+        <div class="dl-card-meaning"  id="dlCardMeaning"></div>
+        <button class="dl-hard-btn" id="dlHardBtn" onclick="dlToggleHard()">⚑ Từ khó</button>
+      </div>
+      <div class="dl-write-area">
+        <div class="dl-write-label">Gõ lại từ trên đây</div>
+        <!-- Desktop input -->
+        <div class="dl-input-row" id="dlDesktopInput">
+          <div class="dl-input-wrap">
+            <input class="dl-input" id="dlInput" type="text"
+              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+              inputmode="search" enterkeyhint="go"
+              placeholder="Gõ lại từ..."
+              onkeydown="if(event.key==='Enter')dlCheckInput()"
+              oninput="dlClearCharDiff()"
+              onsearch="dlCheckInput()">
+          </div>
+          <button class="dl-check-btn" id="dlCheckBtn" onclick="dlCheckInput()">✓</button>
+        </div>
+        <div class="dl-char-diff" id="dlCharDiff"></div>
+        <div class="dl-char-diff-label" id="dlCharDiffLabel">Các ký tự sai được gạch chân đỏ</div>
+        <!-- Virtual keyboard (mobile) -->
+        <div class="dl-vkb" id="dlVkb">
+          <div class="dl-vkb-display" id="dlVkbDisplay">
+            <span class="dl-vkb-display-text" id="dlVkbText"></span>
+            <span class="dl-vkb-display-cursor"></span>
+          </div>
+          <div class="dl-vkb-row" id="dlVkbRow1"></div>
+          <div class="dl-vkb-row" id="dlVkbRow2"></div>
+          <div class="dl-vkb-row" id="dlVkbRow3"></div>
+        </div>
+      </div>
+      <div class="dl-actions">
+        <button class="dl-btn-next"     onclick="dlNext()">Tiếp theo →</button>
+        <button class="dl-btn-mastered" onclick="dlMarkMastered()">✓ Đã thuộc</button>
+      </div>
+      <div class="dl-motivate" id="dlMotivate"></div>
+    </div>
+
+    <!-- SUMMARY SCREEN -->
+    <div class="dl-summary" id="dlSummary" style="display:none">
+      <div class="dl-summary-icon">🎉</div>
+      <div class="dl-summary-title">Phiên học kết thúc!</div>
+      <div class="dl-summary-stats" id="dlSummaryStats"></div>
+      <button class="dl-start-btn" style="margin-top:8px" onclick="dlExit()">Đóng lại</button>
+    </div>
+
+  </div>
+
+  <!-- ARTICLE DRAWER -->
+  <div class="art-overlay" id="artOverlay" onclick="if(event.target===this)closeArtDrawer()">
+    <div class="art-drawer">
+      <div class="art-handle"></div>
+      <div class="art-head">
+        <div class="art-head-title">📰 Ngữ cảnh thực tế</div>
+        <div class="art-head-word" id="artWord"></div>
+        <button class="art-close" onclick="closeArtDrawer()">✕</button>
+      </div>
+      <div class="art-body" id="artBody"></div>
+    </div>
+  </div>
+
+
+<!-- App logic -->
+<script src="js/app.js"></script>
+
+<!-- Article drawer & Excel context import -->
+<script src="js/article.js"></script>
+
+<!-- Deep Learning mode -->
+<script src="js/deeplearn.js"></script>
+
+</body>
+</html>
