@@ -2539,3 +2539,111 @@
     background: rgba(57,255,20,0.22);
     transform: translateY(-1px);
   }
+
+/* REVIEW OVERLAY */
+.review-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(8px);
+  z-index: 1200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.review-overlay.show {
+  display: flex;
+}
+
+.review-panel {
+  background: var(--dark2);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 860px;
+  max-height: 92vh;
+  margin: 20px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.review-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--glass-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.review-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--neon-cyan);
+}
+
+.review-subtitle {
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.5);
+  margin-top: 4px;
+}
+
+.review-desc {
+  padding: 16px 24px;
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.6);
+  background: rgba(0,245,255,0.05);
+}
+
+.review-grid {
+  flex: 1;
+  padding: 20px 24px;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.review-word {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 14px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.review-word:hover {
+  border-color: var(--neon-cyan);
+  transform: translateY(-2px);
+}
+
+.review-word.to-hide {
+  opacity: 0.45;
+  border-color: var(--neon-pink);
+  background: rgba(255,0,110,0.08);
+  text-decoration: line-through;
+}
+
+.review-word .word-text {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.review-word .meaning-text {
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.55);
+}
+
+.review-actions {
+  padding: 20px 24px;
+  border-top: 1px solid var(--glass-border);
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
