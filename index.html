@@ -422,17 +422,21 @@ serendipity - tình cờ may mắn - (n) - It was pure serendipity."></textarea>
   <!-- ========== DANH SÁCH ========== -->
   <div class="panel" id="panel-list">
     <div class="card">
-      <div class="list-toolbar">
-        <div class="section-label" style="margin-bottom:0">Danh sách từ vựng</div>
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <button class="btn-copy-words" id="btnCopyWords" onclick="copyLearningWords()">⎘ Copy từ đang học</button>
-          <button class="btn-ai-writer" id="btnAiWriter" onclick="openAiWriter()">✦ AI Tạo Bài Viết</button>
-          <div class="word-count">
-            <strong id="totalCount">0</strong> từ &nbsp;|&nbsp;
-            <strong id="masteredCount" style="color:var(--neon-green)">0</strong> đã thuộc
-          </div>
-        </div>
-      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+  <button class="btn-copy-words" id="btnCopyWords" onclick="copyLearningWords()">⎘ Copy từ đang học</button>
+  <button class="btn-ai-writer" id="btnAiWriter" onclick="openAiWriter()">✦ AI Tạo Bài Viết</button>
+  
+  <!-- Nút Rà soát từ mới -->
+  <button class="btn-review" onclick="openReview()" 
+    style="background:rgba(255,140,0,0.15); border:1px solid rgba(255,140,0,0.4); color:#ffaa33;">
+    🔍 Rà soát từ
+  </button>
+
+  <div class="word-count">
+    <strong id="totalCount">0</strong> từ &nbsp;|&nbsp;
+    <strong id="masteredCount" style="color:var(--neon-green)">0</strong> đã thuộc
+  </div>
+</div>
       <div class="filter-row">
         <button class="filter-btn active" onclick="setFilter('all',this)">Tất cả</button>
         <button class="filter-btn" onclick="setFilter('learning',this)">Đang học</button>
@@ -679,3 +683,4 @@ serendipity - tình cờ may mắn - (n) - It was pure serendipity."></textarea>
 
 </body>
 </html>
+
