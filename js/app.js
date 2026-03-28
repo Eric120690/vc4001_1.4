@@ -4431,6 +4431,87 @@ function _ltRenderGroupResult(groupIdx) {
     </div>
   `;
 }
+// ====================== RÀ SOÁT TỪ (REVIEW) ======================
 
+let reviewToHide = new Set();   // lưu các từ sẽ ẩn
+
+function openReview() {
+  if (!currentPack || !words.length) {
+    showToast('error', '⚠ Chưa có từ vựng trong gói này');
+    return;
+  }
+
+  reviewToHide.clear();
+  document.getElementById('reviewPackName').textContent = currentPack.name;
+  document.getElementById('reviewOverlay').classList.add('show');
+
+  renderReviewGrid();
+}
+
+function renderReviewGrid() {
+  const grid = document.getElementById('reviewGrid');
+  grid.innerHTML = '';
+
+  // Chỉ hiển thị từ chưa bị ẩn
+  const visibleWords = words.filter(w => !w.hidden);
+
+  if (!visibleWords.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:rgba(255,255,255,0.4)">
+      Tất cả từ đã được ẩn.<br>Không còn từ nào để rà soát.
+    </div>`;
+    return;
+  }
+
+  visibleWords.forEach(wordObj => {
+    const div = document.createElement('div');
+    div.className = 'review-word';
+    div.innerHTML = `
+      <div class="word-text">${h(wordObj.word)}</div>
+      <div class="meaning-text">${h(wordObj.meaning || '')}</div>
+    `;
+
+    div.onclick = () => {
+      const word = wordObj.word;
+      if (reviewToHide.has(word)) {
+        reviewToHide.delete(word);
+        div.classList.remove('to-hide');
+      } else {
+        reviewToHide.add(word);
+        div.classList.add('to-hide');
+      }
+    };
+
+    grid.appendChild(div);
+  });
+}
+
+function saveReviewChanges() {
+  if (reviewToHide.size === 0) {
+    showToast('info', 'Không có từ nào được chọn để ẩn');
+    closeReview();
+    return;
+  }
+
+  let count = 0;
+  words.forEach(w => {
+    if (reviewToHide.has(w.word)) {
+      w.hidden = true;
+      count++;
+    }
+  });
+
+  saveData();           // lưu vào IndexedDB + Firebase
+  renderList();         // refresh danh sách từ
+  updateStudyBadge();
+
+  showToast('success', `✓ Đã ẩn ${count} từ`);
+
+  closeReview();
+}
+
+function closeReview() {
+  document.getElementById('reviewOverlay').classList.remove('show');
+  reviewToHide.clear();
+}
 
 
