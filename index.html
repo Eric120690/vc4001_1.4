@@ -523,7 +523,31 @@ serendipity - tình cờ may mắn - (n) - It was pure serendipity."></textarea>
     <div class="aiview-body" id="aiviewBody"></div>
   </div>
 </div>
+<!-- ===== REVIEW / RÀ SOÁT TỪ OVERLAY ===== -->
+<div class="review-overlay" id="reviewOverlay" onclick="if(event.target===this) closeReview()">
+  <div class="review-panel">
+    <div class="review-header">
+      <div>
+        <div class="review-title">🔍 Rà soát từ vựng</div>
+        <div class="review-subtitle" id="reviewPackName"></div>
+      </div>
+      <button class="review-close" onclick="closeReview()">✕</button>
+    </div>
 
+    <div class="review-desc">
+      Click vào từ bạn muốn <strong>ẩn</strong>. Từ đã chọn sẽ mờ đi.
+    </div>
+
+    <div class="review-grid" id="reviewGrid"></div>
+
+    <div class="review-actions">
+      <button class="btn-cancel" onclick="closeReview()">Hủy</button>
+      <button class="btn-primary" id="reviewSaveBtn" onclick="saveReviewChanges()">
+        ✓ Lưu & Ẩn từ đã chọn
+      </button>
+    </div>
+  </div>
+</div>
 
   <!-- ===== DEEP LEARNING OVERLAY ===== -->
   <button class="dl-exit-btn" id="dlExitBtn" onclick="dlExitOrSummary()">✕ Kết thúc</button>
